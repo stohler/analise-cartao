@@ -75,12 +75,12 @@ class PDFAnalyzer:
                 }
             },
             'btg': {
-                'transaction': r'(\d{1,2}\s+\w{3})\s+(.+?)\s+(R\$\s*[\d.,]+)',
+                'transaction': r'(\d{2}\s+\w{3})\s+(.+?)\s+(R\$\s*[\d.,]+)',
                 'installment': r'\((\d+)/(\d+)\)',
                 'date_format': '%d %b',
                 'currency': r'R\$\s*([\d.,]+)',
                 'categories': {
-                    'alimentacao': ['restaurante', 'bread', 'chef', 'california', 'mc donalds'],
+                    'alimentacao': ['restaurante', 'bread', 'chef', 'california'],
                     'transporte': ['posto', 'grid', 'combustivel'],
                     'saude': ['farmacia', 'clinica', 'medico'],
                     'compras': ['damyller', 'calcad', 'livraria', 'shopping'],
@@ -98,6 +98,19 @@ class PDFAnalyzer:
                     'saude': ['farmacia', 'drogaria', 'raia'],
                     'compras': ['garden', 'magazine'],
                     'servicos': ['seguros', 'anuidade', 'live']
+                }
+            },
+            'c6': {
+                'transaction': r'(\d{1,2}\s+\w{3})\s+(.+?)\s+([\d.,]+)$',
+                'installment': r'-\s*Parcela\s+(\d+)/(\d+)',
+                'date_format': '%d %b',
+                'currency': r'([\d.,]+)',
+                'categories': {
+                    'alimentacao': ['ifood', 'restaurante'],
+                    'transporte': ['latam', 'uber', 'posto'],
+                    'saude': ['farmacia', 'clinica'],
+                    'compras': ['amazon', 'flexform', 'mysadigital'],
+                    'servicos': ['paypal', 'microsoft', 'google', 'prime', 'xbox', 'anuidade']
                 }
             }
         }
@@ -140,12 +153,14 @@ class PDFAnalyzer:
             return 'bradesco'
         elif 'santander' in text_lower:
             return 'santander'
-        elif 'caixa' in text_lower or 'cef' in text_lower:
-            return 'caixa'
         elif 'btg' in text_lower or 'btg pactual' in text_lower:
             return 'btg'
         elif 'unicred' in text_lower:
             return 'unicred'
+        elif 'c6' in text_lower or 'c6 bank' in text_lower or 'banco c6' in text_lower or 'c6 carbon' in text_lower:
+            return 'c6'
+        elif 'caixa' in text_lower or 'cef' in text_lower:
+            return 'caixa'
         
         # Fallback: tentar detectar por padrões de transação
         for bank, patterns in self.patterns.items():
@@ -242,6 +257,8 @@ class PDFAnalyzer:
                 elif bank_format == 'btg':
                     date_str, description, amount_str = groups
                 elif bank_format == 'unicred':
+                    date_str, description, amount_str = groups
+                elif bank_format == 'c6':
                     date_str, description, amount_str = groups
                 
                 # Processar data

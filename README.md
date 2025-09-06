@@ -1,6 +1,6 @@
 # Analisador de Faturas de Cartão de Crédito
 
-Uma aplicação web moderna para análise automática de faturas de cartão de crédito em PDF de 5 bancos diferentes.
+Uma aplicação web moderna para análise automática de faturas de cartão de crédito em PDF de **8 bancos diferentes**.
 
 ## 🏦 Bancos Suportados
 
@@ -9,6 +9,9 @@ Uma aplicação web moderna para análise automática de faturas de cartão de c
 - **Bradesco**
 - **Santander**
 - **Caixa Econômica Federal**
+- **BTG Pactual** ✨ **NOVO!**
+- **Unicred** ✨ **NOVO!**
+- **C6 Bank** ✨ **NOVO!**
 
 ## 📊 Dados Extraídos
 
@@ -128,6 +131,21 @@ http://localhost:5000
 - Padrão de transação: `DD/MM/YYYY DESCRIÇÃO R$ VALOR`
 - Parcelas: `N/N PARCELA`
 
+### BTG Pactual ✨
+- Formato de data: DD MMM
+- Padrão de transação: `DD MMM DESCRIÇÃO R$ VALOR`
+- Parcelas: `(N/N)`
+
+### Unicred ✨
+- Formato de data: DD/mmm
+- Padrão de transação: `DD/mmm DESCRIÇÃO R$ VALOR`
+- Parcelas: `Parc.N/N`
+
+### C6 Bank ✨
+- Formato de data: DD mmm
+- Padrão de transação: `DD mmm DESCRIÇÃO - Parcela N/N VALOR`
+- Parcelas: `Parcela N/N`
+
 ## 🏷️ Categorização Automática
 
 As transações são automaticamente categorizadas baseadas em palavras-chave:
@@ -168,22 +186,22 @@ Para enviar PDFs de exemplo ou reportar problemas:
 2. Descreva o banco e o formato da fatura
 3. Inclua detalhes sobre o erro encontrado
 
-## 🤝 Como Contribuir com Novos Bancos
+## 🎉 Novos Bancos Implementados!
 
-**Bancos Solicitados:** BTG Pactual, Unicred, C6 Bank
+**Recentemente adicionados:** BTG Pactual ✅, Unicred ✅, C6 Bank ✅
 
-### 📤 Envie PDFs de Exemplo
+### 🙏 Agradecimentos
+Obrigado aos contribuidores que enviaram PDFs de exemplo, tornando possível implementar o suporte a estes bancos!
+
+### 📤 Quer Contribuir com Mais Bancos?
 1. **Leia o guia completo**: [`CONTRIBUIR_NOVOS_BANCOS.md`](CONTRIBUIR_NOVOS_BANCOS.md)
 2. **Remova informações pessoais** do seu PDF
 3. **Mantenha a estrutura** e transações
 4. **Envie via GitHub Issues** ou email
 
-### 🎁 Reconhecimento
-Contribuidores serão creditados no projeto e notificados quando o suporte for implementado.
-
 ## 🔄 Atualizações Futuras
 
-- **Suporte a BTG, Unicred e C6** (em desenvolvimento)
+- **Suporte a mais bancos** (envie seu PDF!)
 - Análise de tendências de gastos
 - Alertas de gastos por categoria
 - API REST para integração
