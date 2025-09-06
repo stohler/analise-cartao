@@ -73,6 +73,45 @@ class PDFAnalyzer:
                     'compras': ['loja', 'magazine', 'compra'],
                     'servicos': ['servico', 'assinatura']
                 }
+            },
+            'btg': {
+                'transaction': r'(\d{2}\s+\w{3})\s+(.+?)\s+(R\$\s*[\d.,]+)',
+                'installment': r'\((\d+)/(\d+)\)',
+                'date_format': '%d %b',
+                'currency': r'R\$\s*([\d.,]+)',
+                'categories': {
+                    'alimentacao': ['restaurante', 'bread', 'chef', 'california'],
+                    'transporte': ['posto', 'grid', 'combustivel'],
+                    'saude': ['farmacia', 'clinica', 'medico'],
+                    'compras': ['damyller', 'calcad', 'livraria', 'shopping'],
+                    'servicos': ['mensalidade', 'hotel', 'hair']
+                }
+            },
+            'unicred': {
+                'transaction': r'(\d{1,2}/\w{3})\s+(.+?)\s+(R\$\s*[\d.,]+)',
+                'installment': r'Parc\.(\d+)/(\d+)',
+                'date_format': '%d/%b',
+                'currency': r'R\$\s*([\d.,]+)',
+                'categories': {
+                    'alimentacao': ['angeloni', 'cooper', 'nosso pao', 'mc donalds', 'pizzaria', 'cantina', 'burger', 'lanches', 'cafe'],
+                    'transporte': ['posto', 'postos'],
+                    'saude': ['farmacia', 'drogaria', 'raia'],
+                    'compras': ['garden', 'magazine'],
+                    'servicos': ['seguros', 'anuidade', 'live']
+                }
+            },
+            'c6': {
+                'transaction': r'(\d{1,2}\s+\w{3})\s+(.+?)\s+([\d.,]+)$',
+                'installment': r'-\s*Parcela\s+(\d+)/(\d+)',
+                'date_format': '%d %b',
+                'currency': r'([\d.,]+)',
+                'categories': {
+                    'alimentacao': ['ifood', 'restaurante'],
+                    'transporte': ['latam', 'uber', 'posto'],
+                    'saude': ['farmacia', 'clinica'],
+                    'compras': ['amazon', 'flexform', 'mysadigital'],
+                    'servicos': ['paypal', 'microsoft', 'google', 'prime', 'xbox', 'anuidade']
+                }
             }
         }
 
@@ -114,6 +153,12 @@ class PDFAnalyzer:
             return 'bradesco'
         elif 'santander' in text_lower:
             return 'santander'
+        elif 'btg' in text_lower or 'btg pactual' in text_lower:
+            return 'btg'
+        elif 'unicred' in text_lower:
+            return 'unicred'
+        elif 'c6' in text_lower or 'c6 bank' in text_lower or 'banco c6' in text_lower or 'c6 carbon' in text_lower:
+            return 'c6'
         elif 'caixa' in text_lower or 'cef' in text_lower:
             return 'caixa'
         
@@ -163,6 +208,18 @@ class PDFAnalyzer:
                 date_str = f"{date_str}/{year}"
                 date_format = f"{date_format}/%Y"
             
+            # Para BTG e Unicred, converter mês abreviado para português
+            if '%b' in date_format:
+                months_pt = {
+                    'jan': 'Jan', 'fev': 'Feb', 'mar': 'Mar', 'abr': 'Apr',
+                    'mai': 'May', 'jun': 'Jun', 'jul': 'Jul', 'ago': 'Aug',
+                    'set': 'Sep', 'out': 'Oct', 'nov': 'Nov', 'dez': 'Dec'
+                }
+                for pt, en in months_pt.items():
+                    if pt in date_str.lower():
+                        date_str = date_str.lower().replace(pt, en)
+                        break
+            
             return datetime.strptime(date_str, date_format)
         except ValueError:
             try:
@@ -196,6 +253,12 @@ class PDFAnalyzer:
                 elif bank_format == 'bradesco':
                     date_str, description, amount_str = groups
                 elif bank_format == 'santander':
+                    date_str, description, amount_str = groups
+                elif bank_format == 'btg':
+                    date_str, description, amount_str = groups
+                elif bank_format == 'unicred':
+                    date_str, description, amount_str = groups
+                elif bank_format == 'c6':
                     date_str, description, amount_str = groups
                 
                 # Processar data
