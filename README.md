@@ -168,9 +168,22 @@ Para enviar PDFs de exemplo ou reportar problemas:
 2. Descreva o banco e o formato da fatura
 3. Inclua detalhes sobre o erro encontrado
 
+## 🤝 Como Contribuir com Novos Bancos
+
+**Bancos Solicitados:** BTG Pactual, Unicred, C6 Bank
+
+### 📤 Envie PDFs de Exemplo
+1. **Leia o guia completo**: [`CONTRIBUIR_NOVOS_BANCOS.md`](CONTRIBUIR_NOVOS_BANCOS.md)
+2. **Remova informações pessoais** do seu PDF
+3. **Mantenha a estrutura** e transações
+4. **Envie via GitHub Issues** ou email
+
+### 🎁 Reconhecimento
+Contribuidores serão creditados no projeto e notificados quando o suporte for implementado.
+
 ## 🔄 Atualizações Futuras
 
-- Suporte a mais bancos
+- **Suporte a BTG, Unicred e C6** (em desenvolvimento)
 - Análise de tendências de gastos
 - Alertas de gastos por categoria
 - API REST para integração
