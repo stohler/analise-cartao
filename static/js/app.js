@@ -202,11 +202,12 @@ function displayResults(data, filename) {
                         <th>Parcelado</th>
                         <th>Parcela</th>
                         <th>Categoria</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${transacoes.map(transaction => `
-                        <tr>
+                    ${transacoes.map((transaction, index) => `
+                        <tr id="transaction-${index}">
                             <td>${transaction.data}</td>
                             <td>${transaction.descricao}</td>
                             <td class="text-end">R$ ${transaction.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
@@ -222,9 +223,19 @@ function displayResults(data, filename) {
                                 }
                             </td>
                             <td>
-                                <span class="badge category-${transaction.categoria}">
+                                <span class="badge category-${transaction.categoria}" id="category-${index}">
                                     ${transaction.categoria.charAt(0).toUpperCase() + transaction.categoria.slice(1)}
                                 </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="reclassifyTransaction(${index})" title="Reclassificar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="removeTransaction(${index})" title="Remover">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     `).join('')}
@@ -257,6 +268,100 @@ function exportData(format) {
 function showError(message) {
     document.getElementById('errorMessage').textContent = message;
     errorModal.show();
+}
+
+// Transaction management functions
+function removeTransaction(index) {
+    if (confirm('Tem certeza que deseja remover esta transação?')) {
+        // Remove from current data
+        currentData.transacoes.splice(index, 1);
+        currentData.total_transacoes = currentData.transacoes.length;
+        
+        // Re-display results
+        displayResults(currentData, 'Arquivo atualizado');
+        
+        // Update export buttons if no transactions left
+        if (currentData.transacoes.length === 0) {
+            exportButtons.classList.add('d-none');
+        }
+    }
+}
+
+function reclassifyTransaction(index) {
+    const transaction = currentData.transacoes[index];
+    const categories = ['alimentacao', 'transporte', 'saude', 'compras', 'servicos', 'outros'];
+    
+    // Create modal for category selection
+    const modalHtml = `
+        <div class="modal fade" id="reclassifyModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Reclassificar Transação</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <strong>Transação:</strong><br>
+                            <small class="text-muted">${transaction.descricao}</small><br>
+                            <strong>Valor:</strong> R$ ${transaction.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                        </div>
+                        <div class="mb-3">
+                            <label for="newCategory" class="form-label">Nova Categoria:</label>
+                            <select class="form-select" id="newCategory">
+                                ${categories.map(cat => 
+                                    `<option value="${cat}" ${cat === transaction.categoria ? 'selected' : ''}>
+                                        ${cat.charAt(0).toUpperCase() + cat.slice(1)}
+                                    </option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="confirmReclassification(${index})">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('reclassifyModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('reclassifyModal'));
+    modal.show();
+}
+
+function confirmReclassification(index) {
+    const newCategory = document.getElementById('newCategory').value;
+    
+    // Update transaction category
+    currentData.transacoes[index].categoria = newCategory;
+    
+    // Update the badge in the table
+    const categoryBadge = document.getElementById(`category-${index}`);
+    categoryBadge.className = `badge category-${newCategory}`;
+    categoryBadge.textContent = newCategory.charAt(0).toUpperCase() + newCategory.slice(1);
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('reclassifyModal'));
+    modal.hide();
+    
+    // Remove modal from DOM
+    setTimeout(() => {
+        const modalElement = document.getElementById('reclassifyModal');
+        if (modalElement) {
+            modalElement.remove();
+        }
+    }, 300);
 }
 
 // Utility functions

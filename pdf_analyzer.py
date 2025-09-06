@@ -105,6 +105,15 @@ class PDFAnalyzer:
                 'installment': r'-\s*Parcela\s+(\d+)/(\d+)',
                 'date_format': '%d %b',
                 'currency': r'([\d.,]+)',
+                'exclude_patterns': [
+                    r'^R\$\s*$',  # Apenas "R$"
+                    r'de\s+financiamento',  # "de financiamento"
+                    r'compras\s+internacionais',  # "compras internacionais"
+                    r'^\d{5}\.\d{5}\s+\d{5}\.\d{5}\s+\d{5}\.\d{5}\s+\d+',  # Números de conta longos
+                    r'^\d+\s*$',  # Apenas números
+                    r'^[A-Z\s]+$',  # Apenas letras maiúsculas e espaços
+                    r'^\s*$'  # Linhas vazias ou apenas espaços
+                ],
                 'categories': {
                     'alimentacao': ['ifood', 'restaurante'],
                     'transporte': ['latam', 'uber', 'posto'],
@@ -169,6 +178,20 @@ class PDFAnalyzer:
         
         return 'nubank'  # Default
 
+    def should_exclude_transaction(self, description, bank_format):
+        """Verifica se uma transação deve ser excluída baseada nos padrões de exclusão"""
+        if 'exclude_patterns' not in self.patterns[bank_format]:
+            return False
+        
+        exclude_patterns = self.patterns[bank_format]['exclude_patterns']
+        description_clean = description.strip()
+        
+        for pattern in exclude_patterns:
+            if re.match(pattern, description_clean, re.IGNORECASE):
+                return True
+        
+        return False
+
     def categorize_transaction(self, description, bank_format):
         """Categoriza a transação baseada na descrição"""
         description_lower = description.lower()
@@ -232,6 +255,19 @@ class PDFAnalyzer:
         transactions = []
         patterns = self.patterns[bank_format]
         
+        # Para BTG, filtrar apenas texto após "Lançamentos do cartão"
+        if bank_format == 'btg':
+            lancamentos_pos = text.find('Lançamentos do cartão')
+            if lancamentos_pos != -1:
+                # Pegar texto após a frase "Lançamentos do cartão"
+                text = text[lancamentos_pos:]
+                # Encontrar o início das transações (primeira linha com data)
+                lines = text.split('\n')
+                for i, line in enumerate(lines):
+                    if re.search(r'\d{1,2}\s+\w{3}', line):  # Padrão de data do BTG
+                        text = '\n'.join(lines[i:])
+                        break
+        
         # Buscar transações
         transaction_matches = re.finditer(patterns['transaction'], text, re.IGNORECASE | re.MULTILINE)
         
@@ -263,6 +299,10 @@ class PDFAnalyzer:
                 
                 # Processar data
                 transaction_date = self.parse_date(date_str, patterns['date_format'], current_year)
+                
+                # Verificar se deve excluir esta transação
+                if self.should_exclude_transaction(description, bank_format):
+                    continue
                 
                 # Processar valor
                 amount = self.parse_currency(amount_str)
