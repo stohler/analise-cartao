@@ -365,6 +365,188 @@ class MongoDBHandler:
         except Exception as e:
             print(f"❌ Erro ao criar índices: {e}")
 
+    def get_categories(self) -> List[Dict]:
+        """
+        Obtém todas as categorias disponíveis
+        
+        Returns:
+            Lista de categorias
+        """
+        if not self.collection:
+            return []
+        
+        try:
+            categories_collection = self.db['categorias']
+            categories = list(categories_collection.find({}, {'_id': 0}).sort('nome', 1))
+            return categories
+        except Exception as e:
+            print(f"Erro ao obter categorias: {e}")
+            return []
+
+    def add_category(self, nome: str, descricao: str = "", cor: str = "#6c757d") -> Dict:
+        """
+        Adiciona uma nova categoria
+        
+        Args:
+            nome: Nome da categoria
+            descricao: Descrição da categoria
+            cor: Cor da categoria (hex)
+            
+        Returns:
+            Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            categories_collection = self.db['categorias']
+            
+            # Verificar se categoria já existe
+            existing = categories_collection.find_one({'nome': nome.lower()})
+            if existing:
+                return {'success': False, 'message': 'Categoria já existe'}
+            
+            # Inserir nova categoria
+            category_data = {
+                'nome': nome.lower(),
+                'nome_exibicao': nome,
+                'descricao': descricao,
+                'cor': cor,
+                'ativo': True,
+                'data_criacao': datetime.now()
+            }
+            
+            result = categories_collection.insert_one(category_data)
+            
+            return {
+                'success': True,
+                'message': f'Categoria "{nome}" adicionada com sucesso!',
+                'category_id': str(result.inserted_id)
+            }
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao adicionar categoria: {str(e)}'}
+
+    def update_category(self, category_id: str, nome: str = None, descricao: str = None, cor: str = None, ativo: bool = None) -> Dict:
+        """
+        Atualiza uma categoria existente
+        
+        Args:
+            category_id: ID da categoria
+            nome: Novo nome
+            descricao: Nova descrição
+            cor: Nova cor
+            ativo: Status ativo/inativo
+            
+        Returns:
+            Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            from bson import ObjectId
+            categories_collection = self.db['categorias']
+            
+            # Construir dados de atualização
+            update_data = {}
+            if nome is not None:
+                update_data['nome'] = nome.lower()
+                update_data['nome_exibicao'] = nome
+            if descricao is not None:
+                update_data['descricao'] = descricao
+            if cor is not None:
+                update_data['cor'] = cor
+            if ativo is not None:
+                update_data['ativo'] = ativo
+            
+            update_data['data_atualizacao'] = datetime.now()
+            
+            result = categories_collection.update_one(
+                {'_id': ObjectId(category_id)},
+                {'$set': update_data}
+            )
+            
+            if result.modified_count > 0:
+                return {'success': True, 'message': 'Categoria atualizada com sucesso!'}
+            else:
+                return {'success': False, 'message': 'Categoria não encontrada'}
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao atualizar categoria: {str(e)}'}
+
+    def delete_category(self, category_id: str) -> Dict:
+        """
+        Remove uma categoria
+        
+        Args:
+            category_id: ID da categoria
+            
+        Returns:
+            Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            from bson import ObjectId
+            categories_collection = self.db['categorias']
+            
+            # Verificar se há transações usando esta categoria
+            transactions_count = self.collection.count_documents({'categoria': {'$regex': f'^{category_id}$', '$options': 'i'}})
+            if transactions_count > 0:
+                return {'success': False, 'message': f'Não é possível remover categoria com {transactions_count} transações associadas'}
+            
+            result = categories_collection.delete_one({'_id': ObjectId(category_id)})
+            
+            if result.deleted_count > 0:
+                return {'success': True, 'message': 'Categoria removida com sucesso!'}
+            else:
+                return {'success': False, 'message': 'Categoria não encontrada'}
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao remover categoria: {str(e)}'}
+
+    def initialize_default_categories(self) -> Dict:
+        """
+        Inicializa categorias padrão se não existirem
+        
+        Returns:
+            Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            categories_collection = self.db['categorias']
+            
+            # Verificar se já existem categorias
+            if categories_collection.count_documents({}) > 0:
+                return {'success': True, 'message': 'Categorias já inicializadas'}
+            
+            # Categorias padrão
+            default_categories = [
+                {'nome': 'alimentacao', 'nome_exibicao': 'Alimentação', 'descricao': 'Gastos com comida e bebida', 'cor': '#28a745', 'ativo': True},
+                {'nome': 'transporte', 'nome_exibicao': 'Transporte', 'descricao': 'Gastos com transporte', 'cor': '#007bff', 'ativo': True},
+                {'nome': 'saude', 'nome_exibicao': 'Saúde', 'descricao': 'Gastos com saúde e medicamentos', 'cor': '#dc3545', 'ativo': True},
+                {'nome': 'educacao', 'nome_exibicao': 'Educação', 'descricao': 'Gastos com educação', 'cor': '#6f42c1', 'ativo': True},
+                {'nome': 'lazer', 'nome_exibicao': 'Lazer', 'descricao': 'Gastos com entretenimento', 'cor': '#fd7e14', 'ativo': True},
+                {'nome': 'compras', 'nome_exibicao': 'Compras', 'descricao': 'Compras diversas', 'cor': '#20c997', 'ativo': True},
+                {'nome': 'servicos', 'nome_exibicao': 'Serviços', 'descricao': 'Serviços diversos', 'cor': '#6c757d', 'ativo': True},
+                {'nome': 'outros', 'nome_exibicao': 'Outros', 'descricao': 'Outros gastos', 'cor': '#6c757d', 'ativo': True}
+            ]
+            
+            # Adicionar data de criação
+            for category in default_categories:
+                category['data_criacao'] = datetime.now()
+            
+            result = categories_collection.insert_many(default_categories)
+            
+            return {
+                'success': True,
+                'message': f'{len(result.inserted_ids)} categorias padrão criadas com sucesso!',
+                'inserted_count': len(result.inserted_ids)
+            }
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao inicializar categorias: {str(e)}'}
+
 # Exemplo de uso
 if __name__ == "__main__":
     # String de conexão fornecida pelo usuário

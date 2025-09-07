@@ -53,6 +53,8 @@ if MONGODB_AVAILABLE:
         mongo_connected = mongo_handler.connect()
         if mongo_connected:
             mongo_handler.create_indexes()
+            # Inicializar categorias padrão
+            mongo_handler.initialize_default_categories()
             print("✅ Conectado ao MongoDB com sucesso!")
         else:
             print("❌ Falha na conexão com MongoDB")
@@ -287,6 +289,90 @@ def api_export_mongodb():
             'filename': filename,
             'count': len(transactions)
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/categories')
+def manage_categories():
+    """Página de gerenciamento de categorias"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_handler:
+            flash('Funcionalidade de categorias não disponível - MongoDB necessário', 'error')
+            return redirect(url_for('index'))
+        
+        # Inicializar categorias padrão se necessário
+        mongo_handler.initialize_default_categories()
+        
+        # Obter categorias
+        categories = mongo_handler.get_categories()
+        
+        return render_template('categories.html', 
+                             categories=categories,
+                             mongo_connected=mongo_connected)
+    except Exception as e:
+        flash(f'Erro ao carregar categorias: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/api/categories', methods=['GET'])
+def api_get_categories():
+    """API para obter categorias"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_handler:
+            return jsonify({'error': 'MongoDB não disponível'}), 400
+        
+        categories = mongo_handler.get_categories()
+        return jsonify({'success': True, 'categories': categories})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories', methods=['POST'])
+def api_add_category():
+    """API para adicionar categoria"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_handler:
+            return jsonify({'error': 'MongoDB não disponível'}), 400
+        
+        data = request.get_json()
+        nome = data.get('nome', '').strip()
+        descricao = data.get('descricao', '').strip()
+        cor = data.get('cor', '#6c757d')
+        
+        if not nome:
+            return jsonify({'error': 'Nome da categoria é obrigatório'}), 400
+        
+        result = mongo_handler.add_category(nome, descricao, cor)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<category_id>', methods=['PUT'])
+def api_update_category(category_id):
+    """API para atualizar categoria"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_handler:
+            return jsonify({'error': 'MongoDB não disponível'}), 400
+        
+        data = request.get_json()
+        result = mongo_handler.update_category(
+            category_id,
+            nome=data.get('nome'),
+            descricao=data.get('descricao'),
+            cor=data.get('cor'),
+            ativo=data.get('ativo')
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<category_id>', methods=['DELETE'])
+def api_delete_category(category_id):
+    """API para remover categoria"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_handler:
+            return jsonify({'error': 'MongoDB não disponível'}), 400
+        
+        result = mongo_handler.delete_category(category_id)
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
