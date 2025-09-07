@@ -40,16 +40,26 @@
                                 <th>Valor</th>
                                 <th>Categoria</th>
                                 <th>Parcelado</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for trans in session_data.analysis_result.transacoes %}
-                            <tr>
+                            <tr data-transaction-id="{{ loop.index0 }}">
                                 <td>{{ trans.data }}</td>
                                 <td>{{ trans.descricao }}</td>
                                 <td>R$ {{ "%.2f"|format(trans.valor) }}</td>
                                 <td>
-                                    <span class="badge bg-secondary category-badge">{{ trans.categoria }}</span>
+                                    <select class="form-select form-select-sm category-select" data-transaction-id="{{ loop.index0 }}">
+                                        <option value="alimentacao" {% if trans.categoria == 'alimentacao' %}selected{% endif %}>Alimentação</option>
+                                        <option value="transporte" {% if trans.categoria == 'transporte' %}selected{% endif %}>Transporte</option>
+                                        <option value="saude" {% if trans.categoria == 'saude' %}selected{% endif %}>Saúde</option>
+                                        <option value="educacao" {% if trans.categoria == 'educacao' %}selected{% endif %}>Educação</option>
+                                        <option value="lazer" {% if trans.categoria == 'lazer' %}selected{% endif %}>Lazer</option>
+                                        <option value="compras" {% if trans.categoria == 'compras' %}selected{% endif %}>Compras</option>
+                                        <option value="servicos" {% if trans.categoria == 'servicos' %}selected{% endif %}>Serviços</option>
+                                        <option value="outros" {% if trans.categoria == 'outros' %}selected{% endif %}>Outros</option>
+                                    </select>
                                 </td>
                                 <td>
                                     {% if trans.parcelado == 'Sim' %}
@@ -57,6 +67,11 @@
                                     {% else %}
                                         <span class="badge bg-success">Não</span>
                                     {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="removeTransaction({{ loop.index0 }})" title="Remover transação">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -229,5 +244,44 @@
             showToast('Erro ao salvar localmente', 'error');
         });
     }
+
+    // Função para remover transação
+    function removeTransaction(transactionId) {
+        if (confirm('Tem certeza que deseja remover esta transação?')) {
+            const row = document.querySelector(`tr[data-transaction-id="${transactionId}"]`);
+            if (row) {
+                row.remove();
+                showToast('Transação removida com sucesso!', 'success');
+                updateTransactionCount();
+            }
+        }
+    }
+
+    // Função para atualizar categoria
+    function updateCategory(transactionId, newCategory) {
+        console.log(`Categoria atualizada para transação ${transactionId}: ${newCategory}`);
+        showToast('Categoria atualizada!', 'success');
+    }
+
+    // Atualizar contador de transações
+    function updateTransactionCount() {
+        const remainingTransactions = document.querySelectorAll('tbody tr').length;
+        const countElement = document.querySelector('.card-title');
+        if (countElement) {
+            countElement.innerHTML = `<i class="fas fa-file-pdf me-2"></i>Resultado da Análise (${remainingTransactions} transações)`;
+        }
+    }
+
+    // Adicionar event listeners para mudança de categoria
+    document.addEventListener('DOMContentLoaded', function() {
+        const categorySelects = document.querySelectorAll('.category-select');
+        categorySelects.forEach(select => {
+            select.addEventListener('change', function() {
+                const transactionId = this.getAttribute('data-transaction-id');
+                const newCategory = this.value;
+                updateCategory(transactionId, newCategory);
+            });
+        });
+    });
 </script>
 {% endblock %}
