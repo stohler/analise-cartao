@@ -1,0 +1,580 @@
+{
+  "filename": "nubank.pdf",
+  "analysis_result": {
+    "banco_detectado": "nubank",
+    "total_transacoes": 57,
+    "transacoes": [
+      {
+        "data": "29/06/2025",
+        "descricao": "Mercadolivre*Ebazarco - Parcela 4/7",
+        "parcelado": "Sim",
+        "parcela_atual": 4,
+        "parcela_total": 7,
+        "valor": 34.98,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Le Lis Joinville - Parcela 2/5",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 5,
+        "valor": 275.96,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Mercadolivre*Salonlin - Parcela 5/5",
+        "parcelado": "Sim",
+        "parcela_atual": 5,
+        "parcela_total": 5,
+        "valor": 53.98,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Pg *Genera Genera - Parcela 5/5",
+        "parcelado": "Sim",
+        "parcela_atual": 5,
+        "parcela_total": 5,
+        "valor": 72.91,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Mm Turismo - Parcela 3/3",
+        "parcelado": "Sim",
+        "parcela_atual": 3,
+        "parcela_total": 3,
+        "valor": 259.31,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Hub Fin*Magazineluiza - Parcela 10/10",
+        "parcelado": "Sim",
+        "parcela_atual": 10,
+        "parcela_total": 10,
+        "valor": 250.79,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Youse Auto*0911-07/24",
+        "parcelado": "Sim",
+        "parcela_atual": 7,
+        "parcela_total": 24,
+        "valor": 154.74,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Disal Ecommerce - Parcela 7/7",
+        "parcelado": "Sim",
+        "parcela_atual": 7,
+        "parcela_total": 7,
+        "valor": 51.82,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Doctoraliabrazil - Parcela 3/12",
+        "parcelado": "Sim",
+        "parcela_atual": 3,
+        "parcela_total": 12,
+        "valor": 349.0,
+        "categoria": "saude",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Sn Consultoria Medicin - Parcela 4/4",
+        "parcelado": "Sim",
+        "parcela_atual": 4,
+        "parcela_total": 4,
+        "valor": 1075.0,
+        "categoria": "saude",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Kazullo Industria e Co - Parcela 2/2",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 2,
+        "valor": 403.9,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Sn Consultoria Medicin - Parcela 2/3",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 3,
+        "valor": 466.67,
+        "categoria": "saude",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Gol Linhas A*Qqyqvi018 - Parcela 4/4",
+        "parcelado": "Sim",
+        "parcela_atual": 4,
+        "parcela_total": 4,
+        "valor": 102.15,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "Track e Field Balneari - Parcela 3/6",
+        "parcelado": "Sim",
+        "parcela_atual": 3,
+        "parcela_total": 6,
+        "valor": 126.61,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/06/2025",
+        "descricao": "School Picture - Parcela 2/4",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 4,
+        "valor": 36.5,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "30/06/2025",
+        "descricao": "- NuPay",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 31.57,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "30/06/2025",
+        "descricao": "Mp *Melimais",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 62.9,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "01/07/2025",
+        "descricao": "Ifd*Napedra Pizzaria J",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 96.99,
+        "categoria": "alimentacao",
+        "banco": "nubank"
+      },
+      {
+        "data": "01/07/2025",
+        "descricao": "Uber Uber *Trip Help.U",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 24.13,
+        "categoria": "transporte",
+        "banco": "nubank"
+      },
+      {
+        "data": "01/07/2025",
+        "descricao": "Localiza Rac Acjgs0",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 2384.54,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "02/07/2025",
+        "descricao": "Panif. Cantinho Doce",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 19.0,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "02/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 4.99,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "03/07/2025",
+        "descricao": "Dm *Spotify",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 21.9,
+        "categoria": "servicos",
+        "banco": "nubank"
+      },
+      {
+        "data": "03/07/2025",
+        "descricao": "Ifd*Mirai Gurume San R",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 321.99,
+        "categoria": "alimentacao",
+        "banco": "nubank"
+      },
+      {
+        "data": "03/07/2025",
+        "descricao": "Uber Uber *One Help.Ub",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 19.9,
+        "categoria": "transporte",
+        "banco": "nubank"
+      },
+      {
+        "data": "03/07/2025",
+        "descricao": "Panif. Cantinho Doce",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 23.25,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "05/07/2025",
+        "descricao": "Raia2715",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 60.06,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "05/07/2025",
+        "descricao": "Ifd*Saintburger Lancho",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 60.69,
+        "categoria": "alimentacao",
+        "banco": "nubank"
+      },
+      {
+        "data": "05/07/2025",
+        "descricao": "Wow*Dudu Fernandes Con",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 250.0,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "06/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 13.37,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "07/07/2025",
+        "descricao": "Mp *7produtos",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 217.87,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "07/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 8.99,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "07/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 16.38,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "08/07/2025",
+        "descricao": "Ifd*Napedra Pizzaria J",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 106.99,
+        "categoria": "alimentacao",
+        "banco": "nubank"
+      },
+      {
+        "data": "08/07/2025",
+        "descricao": "Subadq *Amadeirado Res",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 39.56,
+        "categoria": "servicos",
+        "banco": "nubank"
+      },
+      {
+        "data": "08/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 12.5,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "08/07/2025",
+        "descricao": "Live - Parcela 1/2",
+        "parcelado": "Sim",
+        "parcela_atual": 1,
+        "parcela_total": 2,
+        "valor": 144.95,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "08/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 8.27,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "08/07/2025",
+        "descricao": "Dl *Google Ads97787385",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 150.0,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "08/07/2025",
+        "descricao": "Luz da Lua - Parcela 1/2",
+        "parcelado": "Sim",
+        "parcela_atual": 1,
+        "parcela_total": 2,
+        "valor": 209.95,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "09/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 12.09,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "09/07/2025",
+        "descricao": "Supermerc Giassi Lj15",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 12.4,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "11/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 9.78,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "11/07/2025",
+        "descricao": "Netflix.Com",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 59.9,
+        "categoria": "servicos",
+        "banco": "nubank"
+      },
+      {
+        "data": "12/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 16.37,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "14/07/2025",
+        "descricao": "Zoom.Com 888-799-9666",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 98.46,
+        "categoria": "transporte",
+        "banco": "nubank"
+      },
+      {
+        "data": "15/07/2025",
+        "descricao": "Dl *Google Ads97787385",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 150.0,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "15/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 8.99,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "17/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 2.98,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "18/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 14.5,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "18/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 7.25,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "19/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 31.89,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "20/07/2025",
+        "descricao": "Asa*Peg Ai Loja Inteli",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 3.99,
+        "categoria": "compras",
+        "banco": "nubank"
+      },
+      {
+        "data": "21/07/2025",
+        "descricao": "Beleza Na Web - Parcela 1/3",
+        "parcelado": "Sim",
+        "parcela_atual": 1,
+        "parcela_total": 3,
+        "valor": 122.64,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "24/07/2025",
+        "descricao": "Produtos Globo - Parcela 1/12",
+        "parcelado": "Sim",
+        "parcela_atual": 1,
+        "parcela_total": 12,
+        "valor": 22.72,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "26/07/2025",
+        "descricao": "Dl *Google Ads97787385",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 150.0,
+        "categoria": "outros",
+        "banco": "nubank"
+      },
+      {
+        "data": "29/07/2025",
+        "descricao": "Youse Auto*0911-08/24",
+        "parcelado": "Sim",
+        "parcela_atual": 8,
+        "parcela_total": 24,
+        "valor": 154.74,
+        "categoria": "outros",
+        "banco": "nubank"
+      }
+    ]
+  },
+  "timestamp": "2025-09-07T17:05:07.074354"
+}

@@ -1,208 +1,246 @@
-# Analisador de Faturas de Cartão de Crédito
+# 🏦 Analisador de PDFs de Cartão de Crédito
 
-Uma aplicação web moderna para análise automática de faturas de cartão de crédito em PDF de **8 bancos diferentes**.
+Sistema completo para análise e armazenamento de transações de cartão de crédito extraídas de PDFs de faturas bancárias.
+
+## ✨ Funcionalidades
+
+### 📄 Análise de PDFs
+- **Suporte a múltiplos bancos**: Nubank, Itaú, Bradesco, Santander, BTG, Unicred, C6, Caixa
+- **Detecção automática** do banco baseada no conteúdo do PDF
+- **Extração inteligente** de transações com data, descrição, valor e categoria
+- **Detecção de parcelamentos** automática
+- **Categorização** das transações por tipo (alimentação, transporte, saúde, compras, serviços)
+
+### 💾 Armazenamento
+- **Remoção de duplicados** baseada em hash único
+- **Origem do cartão** configurável (Principal, Adicional, Corporativo, etc.)
+- **Armazenamento local** em arquivo JSON
+- **Preparado para MongoDB** (formato de exportação incluído)
+
+### 📊 Análise Temporal
+- **Comparativo de 6 meses** com tendências e insights
+- **Análise por origem do cartão** (filtros específicos)
+- **Relatórios executivos** com estatísticas detalhadas
+- **Exportação de relatórios** em formato JSON
+- **Integração MongoDB** para consultas avançadas
+
+### 🖥️ Interfaces
+- **Interface web** (Flask) - Upload de PDFs e gravação automática no MongoDB
+- **Interface gráfica** (tkinter) - quando disponível
+- **Interface de linha de comando** - sempre funcional
+- **Exportação** para formato MongoDB
+
+## 🚀 Como Usar
+
+### Interface Web (Recomendada)
+
+```bash
+
+
+```
+
+Acesse: **http://localhost:5000**
+
+**Funcionalidades da interface web:**
+- 📤 **Upload de PDFs** com drag & drop
+- 🔍 **Análise automática** de transações
+- 💾 **Botão para gravar no MongoDB** automaticamente
+- 📊 **Visualização** de transações em tabelas
+- 📈 **Comparativo mensal** integrado
+- 🎨 **Interface moderna** com Bootstrap
+
+### Interface de Linha de Comando
+
+```bash
+python3 cli_analyzer.py
+```
+
+**Menu principal:**
+1. **Analisar PDF** - Carrega e analisa um arquivo PDF
+2. **Ver transações salvas** - Lista transações armazenadas
+3. **Estatísticas** - Mostra estatísticas detalhadas
+4. **Comparativo 6 meses** - Análise temporal com tendências
+5. **Exportar para MongoDB** - Gera arquivo JSON para importação
+6. **Sair**
+
+### Interface Gráfica (se tkinter disponível)
+
+```bash
+python3 gui_analyzer.py
+```
+
+## 📋 Exemplo de Uso
+
+### 1. Analisar PDF
+```
+Digite o caminho do arquivo PDF: /caminho/para/fatura.pdf
+```
+
+### 2. Resultado da Análise
+```
+✅ Análise concluída!
+🏦 Banco detectado: NUBANK
+📈 Total de transações: 7
+
+💳 TRANSAÇÕES ENCONTRADAS:
+--------------------------------------------------
+ 1. 29/06/2025 - Disal Ecommerce - Parcela 7/7
+     💰 Valor: R$ 51.82
+     🏷️  Categoria: compras
+     🏦 Banco: nubank
+     📅 Parcelado: 7/7
+```
+
+### 3. Salvar Transações
+```
+💾 Deseja salvar estas transações? (s/n): s
+Origem do cartão: Cartão Principal
+Remover duplicados? (s/n): s
+✅ Operação concluída: 7 salvas, 0 duplicadas, 0 erros
+```
+
+## 🗂️ Estrutura de Arquivos
+
+```
+analise-cartao/
+├── pdf_analyzer.py           # Motor de análise de PDFs
+├── data_handler.py           # Gerenciador de dados (JSON)
+├── mongodb_handler.py        # Gerenciador MongoDB
+├── monthly_comparison.py     # Sistema de comparativo mensal
+├── web_analyzer.py           # Interface web (Flask)
+├── start_web.py              # Script para iniciar interface web
+├── gui_analyzer.py           # Interface gráfica
+├── cli_analyzer.py           # Interface linha de comando
+├── templates/                # Templates HTML
+│   ├── base.html
+│   ├── index.html
+│   ├── analysis.html
+│   ├── transactions.html
+│   └── comparison.html
+├── uploads/                  # Pasta para uploads (criada automaticamente)
+├── transacoes.json           # Arquivo de dados (criado automaticamente)
+├── relatorio_comparativo_*.json # Relatórios exportados
+└── requirements.txt          # Dependências
+```
+
+## 📊 Formato dos Dados
+
+### Transação Individual
+```json
+{
+  "data": "29/06/2025",
+  "descricao": "Disal Ecommerce - Parcela 7/7",
+  "valor": 51.82,
+  "categoria": "compras",
+  "banco": "nubank",
+  "parcelado": "Sim",
+  "parcela_atual": 7,
+  "parcela_total": 7,
+  "origem_cartao": "Cartão Principal",
+  "data_importacao": "2025-01-27T10:30:00",
+  "transaction_hash": "abc123..."
+}
+```
 
 ## 🏦 Bancos Suportados
 
-- **Nubank**
-- **Itaú** 
-- **Bradesco**
-- **Santander**
-- **Caixa Econômica Federal**
-- **BTG Pactual** ✨ **NOVO!**
-- **Unicred** ✨ **NOVO!**
-- **C6 Bank** ✨ **NOVO!**
+| Banco | Formato de Data | Características |
+|-------|----------------|-----------------|
+| **Nubank** | DD MMM | •••• + números de cartão |
+| **Itaú** | DD/MM | Valores com separadores |
+| **Bradesco** | DD/MM | Parcelas em formato "Xª DE Y" |
+| **Santander** | DD/MM/YY | Formato "PARCELA X/Y" |
+| **BTG** | DD MMM | Mês abreviado em português |
+| **Unicred** | DD/MMM | Formato "Parc.X/Y" |
+| **C6** | DD MMM | Padrões específicos |
+| **Caixa** | DD/MM/YYYY | Formato completo |
 
-## 📊 Dados Extraídos
+## 🔧 Configuração MongoDB
 
-Para cada transação, a aplicação extrai:
+### String de Conexão
+```
+mongodb+srv://paulostohler_db_user:nO1Jn8huiAh7h3cY@cluster0.d1b6nys.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+```
 
-- **Data** da transação
-- **Descrição** completa
-- **Parcelado** (Sim/Não)
-- **Parcela atual** e **total de parcelas** (se parcelado)
-- **Valor** da transação
-- **Categoria** automática (alimentação, transporte, saúde, compras, serviços, outros)
+### Importação
+1. Exporte as transações usando a opção 4 do CLI
+2. Use o arquivo `transacoes_mongodb.json` gerado
+3. Importe no MongoDB usando mongoimport ou interface web
 
-## 🚀 Funcionalidades
+## 📈 Estatísticas Disponíveis
 
-### ✨ Interface Web Moderna
-- Upload por drag & drop ou clique
-- Interface responsiva e intuitiva
-- Visualização em tempo real dos resultados
-- Estatísticas resumidas
+### Estatísticas Gerais
+- **Total de transações** por banco
+- **Categorização** automática
+- **Valor total** gasto
+- **Transações parceladas** vs à vista
+- **Origem do cartão** (quando múltiplos cartões)
 
-### 📈 Análise Inteligente
-- Detecção automática do formato do banco
-- Categorização automática das transações
-- Identificação de parcelas e parcelamentos
-- Extração precisa de valores e datas
+### Análise Temporal (6 meses)
+- **Comparativo mensal** de gastos
+- **Tendências** de aumento/diminuição
+- **Média mensal** de gastos
+- **Insights automáticos** sobre padrões
+- **Relatórios executivos** exportáveis
+- **Análise por categoria** ao longo do tempo
 
-### 📤 Exportação de Dados
-- **CSV** - Para análise em planilhas
-- **Excel** - Formato .xlsx com formatação
-- **JSON** - Para integração com outros sistemas
+## 🛠️ Dependências
 
-## 🛠️ Instalação
-
-### Pré-requisitos
-- Python 3.8+
-- pip (gerenciador de pacotes Python)
-
-### Passos de Instalação
-
-1. **Clone ou baixe o projeto**
 ```bash
-cd /workspace
+pip3 install -r requirements.txt
 ```
 
-2. **Instale as dependências**
+Ou instalar individualmente:
 ```bash
-pip install -r requirements.txt
+pip3 install PyPDF2 pdfplumber python-dateutil Flask pymongo
 ```
 
-3. **Execute a aplicação**
+Para MongoDB (opcional):
 ```bash
-python app.py
+pip3 install pymongo[srv]
 ```
 
-4. **Acesse no navegador**
-```
-http://localhost:5000
-```
+## 🎯 Casos de Uso
 
-## 📝 Como Usar
+1. **Controle financeiro pessoal** - Analise faturas de múltiplos cartões
+2. **Relatórios empresariais** - Consolidação de gastos corporativos
+3. **Análise de padrões** - Identificação de gastos por categoria
+4. **Análise temporal** - Comparativo de gastos ao longo dos meses
+5. **Backup de dados** - Armazenamento seguro de transações
+6. **Integração com sistemas** - Exportação para MongoDB/outros bancos
+7. **Relatórios executivos** - Análise de tendências e insights automáticos
 
-### 1. Upload do PDF
-- Acesse a aplicação no navegador
-- Clique na área de upload ou arraste seu PDF de fatura
-- Aguarde o processamento (alguns segundos)
+## 🔍 Detecção de Duplicados
 
-### 2. Visualização dos Resultados
-- Veja o resumo estatístico no topo
-- Analise a distribuição por categorias
-- Examine a tabela detalhada de transações
+O sistema usa hash MD5 baseado em:
+- Data da transação
+- Descrição
+- Valor
+- Banco
+- Origem do cartão
 
-### 3. Exportação
-- Clique em um dos botões de exportação (CSV, Excel, JSON)
-- O arquivo será baixado automaticamente
+Isso garante que transações idênticas não sejam duplicadas, mesmo se importadas múltiplas vezes.
 
-## 🔧 Estrutura do Projeto
+## 📝 Notas Importantes
 
-```
-/workspace/
-├── app.py                 # Aplicação Flask principal
-├── pdf_analyzer.py        # Módulo de análise de PDF
-├── requirements.txt       # Dependências Python
-├── templates/
-│   └── index.html        # Interface web
-├── static/
-│   ├── css/
-│   │   └── style.css     # Estilos customizados
-│   └── js/
-│       └── app.js        # JavaScript frontend
-└── uploads/              # Diretório temporário (criado automaticamente)
-```
+- **Formato de PDF**: Funciona melhor com PDFs de texto (não escaneados)
+- **Encoding**: Suporte completo a caracteres especiais (UTF-8)
+- **Performance**: Otimizado para faturas com centenas de transações
+- **Backup**: Dados salvos localmente em `transacoes.json`
 
-## 🎯 Padrões de Reconhecimento
+## 🆘 Solução de Problemas
 
-### Nubank
-- Formato de data: DD/MM
-- Padrão de transação: `DD/MM DESCRIÇÃO R$ VALOR`
-- Parcelas: `N/N`
+### Erro de OpenSSL
+Se encontrar problemas com pymongo, use apenas o armazenamento local (JSON).
 
-### Itaú
-- Formato de data: DD/MM/YYYY
-- Padrão de transação: `DD/MM/YYYY DESCRIÇÃO VALOR`
-- Parcelas: `PARC N/N`
+### PDF não analisado
+- Verifique se o PDF contém texto (não é imagem escaneada)
+- Teste com PDFs de outros bancos suportados
 
-### Bradesco
-- Formato de data: DD/MM
-- Padrão de transação: `DD/MM DESCRIÇÃO VALOR`
-- Parcelas: `NªDE N`
+### Transações não detectadas
+- Verifique se o formato do banco está suportado
+- Contate para adicionar novos padrões de regex
 
-### Santander
-- Formato de data: DD/MM/YY
-- Padrão de transação: `DD/MM/YY DESCRIÇÃO VALOR`
-- Parcelas: `PARCELA N/N`
+---
 
-### Caixa
-- Formato de data: DD/MM/YYYY
-- Padrão de transação: `DD/MM/YYYY DESCRIÇÃO R$ VALOR`
-- Parcelas: `N/N PARCELA`
-
-### BTG Pactual ✨
-- Formato de data: DD MMM
-- Padrão de transação: `DD MMM DESCRIÇÃO R$ VALOR`
-- Parcelas: `(N/N)`
-
-### Unicred ✨
-- Formato de data: DD/mmm
-- Padrão de transação: `DD/mmm DESCRIÇÃO R$ VALOR`
-- Parcelas: `Parc.N/N`
-
-### C6 Bank ✨
-- Formato de data: DD mmm
-- Padrão de transação: `DD mmm DESCRIÇÃO - Parcela N/N VALOR`
-- Parcelas: `Parcela N/N`
-
-## 🏷️ Categorização Automática
-
-As transações são automaticamente categorizadas baseadas em palavras-chave:
-
-- **Alimentação**: restaurante, lanchonete, delivery, ifood, uber eats
-- **Transporte**: uber, 99, posto, combustível, estacionamento
-- **Saúde**: farmácia, drogaria, hospital, clínica, médico
-- **Compras**: magazine, americanas, mercado livre, amazon
-- **Serviços**: netflix, spotify, internet, telefone
-- **Outros**: transações que não se encaixam nas categorias acima
-
-## 🔒 Segurança
-
-- Arquivos PDF são processados localmente
-- Arquivos temporários são automaticamente removidos
-- Limite de 16MB por arquivo
-- Apenas arquivos PDF são aceitos
-
-## 🐛 Solução de Problemas
-
-### Erro: "Nenhuma transação encontrada"
-- Verifique se o PDF contém texto (não é apenas imagem)
-- Confirme se é uma fatura de um dos bancos suportados
-- Tente um PDF de melhor qualidade
-
-### Erro: "Não foi possível extrair texto do PDF"
-- O PDF pode estar protegido ou corrompido
-- Tente salvar o PDF novamente ou usar uma versão diferente
-
-### Interface não carrega
-- Verifique se todas as dependências foram instaladas
-- Confirme se a porta 5000 não está sendo usada por outro programa
-
-## 📧 Suporte
-
-Para enviar PDFs de exemplo ou reportar problemas:
-1. Certifique-se de remover informações pessoais dos PDFs
-2. Descreva o banco e o formato da fatura
-3. Inclua detalhes sobre o erro encontrado
-
-## 🎉 Novos Bancos Implementados!
-
-**Recentemente adicionados:** BTG Pactual ✅, Unicred ✅, C6 Bank ✅
-
-### 🙏 Agradecimentos
-Obrigado aos contribuidores que enviaram PDFs de exemplo, tornando possível implementar o suporte a estes bancos!
-
-### 📤 Quer Contribuir com Mais Bancos?
-1. **Leia o guia completo**: [`CONTRIBUIR_NOVOS_BANCOS.md`](CONTRIBUIR_NOVOS_BANCOS.md)
-2. **Remova informações pessoais** do seu PDF
-3. **Mantenha a estrutura** e transações
-4. **Envie via GitHub Issues** ou email
-
-## 🔄 Atualizações Futuras
-
-- **Suporte a mais bancos** (envie seu PDF!)
-- Análise de tendências de gastos
-- Alertas de gastos por categoria
-- API REST para integração
-- Processamento em lote de múltiplos PDFs
+**Desenvolvido para análise eficiente de faturas de cartão de crédito** 🏦💳

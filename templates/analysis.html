@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado da Análise - Analisador de PDFs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-pdf me-2"></i>Resultado da Análise
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Arquivo:</strong> {{ session_data.filename }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Banco:</strong> 
+                        <span class="badge bg-primary">{{ session_data.analysis_result.banco_detectado.upper() }}</span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Total de Transações:</strong> {{ session_data.analysis_result.total_transacoes }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Data da Análise:</strong> {{ session_data.timestamp[:19] }}
+                    </div>
+                </div>
+
+                <h6 class="mt-4 mb-3">Transações Encontradas:</h6>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                                <th>Categoria</th>
+                                <th>Parcelado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trans in session_data.analysis_result.transacoes %}
+                            <tr>
+                                <td>{{ trans.data }}</td>
+                                <td>{{ trans.descricao }}</td>
+                                <td>R$ {{ "%.2f"|format(trans.valor) }}</td>
+                                <td>
+                                    <span class="badge bg-secondary category-badge">{{ trans.categoria }}</span>
+                                </td>
+                                <td>
+                                    {% if trans.parcelado == 'Sim' %}
+                                        <span class="badge bg-warning">{{ trans.parcela_atual }}/{{ trans.parcela_total }}</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Não</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-save me-2"></i>Salvar Transações
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="saveForm">
+                    <input type="hidden" id="sessionFile" value="{{ session_data.filename }}">
+                    
+                    <div class="mb-3">
+                        <label for="cardOrigin" class="form-label">Origem do Cartão</label>
+                        <select class="form-select" id="cardOrigin" required>
+                            <option value="Cartão Principal">Cartão Principal</option>
+                            <option value="Cartão Adicional">Cartão Adicional</option>
+                            <option value="Cartão Corporativo">Cartão Corporativo</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="removeDuplicates" checked>
+                            <label class="form-check-label" for="removeDuplicates">
+                                Remover duplicados
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        {% if mongo_connected %}
+                        <button type="button" class="btn btn-success" onclick="saveToMongoDB()">
+                            <i class="fas fa-database me-2"></i>Salvar no MongoDB
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn btn-primary" onclick="saveToLocal()">
+                            <i class="fas fa-save me-2"></i>Salvar Localmente
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Resumo
+                </h5>
+            </div>
+            <div class="card-body">
+                {% set total_value = session_data.analysis_result.transacoes | sum(attribute='valor') %}
+                {% set parceladas = session_data.analysis_result.transacoes | selectattr('parcelado', 'equalto', 'Sim') | list | length %}
+                
+                <div class="mb-2">
+                    <strong>Valor Total:</strong>
+                    <span class="float-end">R$ {{ "%.2f"|format(total_value) }}</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Transações Parceladas:</strong>
+                    <span class="float-end">{{ parceladas }}</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Média por Transação:</strong>
+                    <span class="float-end">R$ {{ "%.2f"|format(total_value / session_data.analysis_result.total_transacoes) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Ações
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-upload me-2"></i>Analisar Outro PDF
+                    </a>
+                    <a href="{{ url_for('view_transactions') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i>Ver Todas as Transações
+                    </a>
+                    <a href="{{ url_for('monthly_comparison') }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-line me-2"></i>Comparativo Mensal
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function saveToMongoDB() {
+        const sessionFile = document.getElementById('sessionFile').value;
+        const cardOrigin = document.getElementById('cardOrigin').value;
+        const removeDuplicates = document.getElementById('removeDuplicates').checked;
+
+        const button = event.target;
+        const originalText = showLoading(button);
+
+        fetch('/save_to_mongodb', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_file: sessionFile,
+                card_origin: cardOrigin,
+                remove_duplicates: removeDuplicates
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            restoreButton(button, originalText);
+            if (data.success) {
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            restoreButton(button, originalText);
+            showToast('Erro ao salvar no MongoDB', 'error');
+        });
+    }
+
+    function saveToLocal() {
+        const sessionFile = document.getElementById('sessionFile').value;
+        const cardOrigin = document.getElementById('cardOrigin').value;
+        const removeDuplicates = document.getElementById('removeDuplicates').checked;
+
+        const button = event.target;
+        const originalText = showLoading(button);
+
+        fetch('/save_to_local', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_file: sessionFile,
+                card_origin: cardOrigin,
+                remove_duplicates: removeDuplicates
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            restoreButton(button, originalText);
+            if (data.success) {
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            restoreButton(button, originalText);
+            showToast('Erro ao salvar localmente', 'error');
+        });
+    }
+</script>
+{% endblock %}

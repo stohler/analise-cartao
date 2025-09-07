@@ -19,7 +19,7 @@ fi
 
 # Verificar se todas as dependências estão instaladas
 echo "🔍 Verificando dependências..."
-python -c "import flask, PyPDF2, pdfplumber, pandas, openpyxl" 2>/dev/null
+python3 -c "import flask, PyPDF2, pdfplumber, pandas, openpyxl" 2>/dev/null
 
 if [ $? -eq 0 ]; then
     echo "✅ Todas as dependências estão instaladas!"
@@ -45,5 +45,8 @@ echo "   • Caixa Econômica Federal"
 echo ""
 echo "================================================="
 
-# Iniciar aplicação
-python app.py
+# Configurar PATH para usar pip atualizado
+export PATH="/root/.local/bin:$PATH"
+
+# Iniciar aplicação com MongoDB
+python3 web_analyzer.py

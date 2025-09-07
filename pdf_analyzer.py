@@ -10,29 +10,36 @@ class PDFAnalyzer:
         # Padrões para diferentes formatos de fatura
         self.patterns = {
             'nubank': {
-                'transaction': r'(\d{2}/\d{2})\s+(.+?)\s+(R\$\s*[\d.,]+)',
+                'transaction': r'(\d{1,2}\s+\w{3})\s+[•\s\d]+\s+(.+?)\s+(R\$\s*[\d.,]+)',
                 'installment': r'(\d+)/(\d+)',
-                'date_format': '%d/%m',
+                'date_format': '%d %b',
                 'currency': r'R\$\s*([\d.,]+)',
+                'exclude_patterns': [
+                    r'^EMISSÃO\s+E\s+ENVIO',  # Cabeçalho "EMISSÃO E ENVIO"
+                    r'^TRANSAÇÕES\s+DE\s+\d{2}\s+\w{3}\s+A\s+\d{2}\s+\w{3}',  # "TRANSAÇÕES DE 29 JUN A 30 JUL"
+                    r'^[A-Z\s]+\s+\d{2}\s+\w{3}\s+\d{4}',  # Nome + data no cabeçalho
+                    r'^[A-Z\s]+$',  # Apenas letras maiúsculas e espaços (cabeçalhos)
+                    r'^\s*$'  # Linhas vazias
+                ],
                 'categories': {
-                    'alimentacao': ['restaurante', 'lanchonete', 'delivery', 'ifood', 'uber eats'],
+                    'alimentacao': ['restaurante', 'lanchonete', 'delivery', 'ifood', 'uber eats', 'pizzaria', 'ifd', 'napedra'],
                     'transporte': ['uber', '99', 'posto', 'combustivel', 'estacionamento'],
-                    'saude': ['farmacia', 'drogaria', 'hospital', 'clinica', 'medico'],
-                    'compras': ['magazine', 'americanas', 'mercado livre', 'amazon'],
-                    'servicos': ['netflix', 'spotify', 'internet', 'telefone']
+                    'saude': ['farmacia', 'drogaria', 'hospital', 'clinica', 'medico', 'doctoralia', 'consultoria medicin'],
+                    'compras': ['magazine', 'americanas', 'mercado livre', 'amazon', 'digital', 'loja', 'ecommerce', 'disal'],
+                    'servicos': ['netflix', 'spotify', 'internet', 'telefone', 'asa', 'peg', 'subadq', 'amadeirado']
                 }
             },
             'itau': {
-                'transaction': r'(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d.,]+)',
-                'installment': r'PARC\s*(\d+)/(\d+)',
-                'date_format': '%d/%m/%Y',
-                'currency': r'([\d.,]+)',
+                'transaction': r'(\d{2}/\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})',
+                'installment': r'(\d{1,2})/(\d{1,2})',
+                'date_format': '%d/%m',
+                'currency': r'(\d{1,3}(?:\.\d{3})*,\d{2})',
                 'categories': {
-                    'alimentacao': ['rest', 'lanch', 'delivery', 'ifood'],
-                    'transporte': ['uber', 'taxi', 'posto', 'shell', 'br'],
-                    'saude': ['farm', 'drog', 'hosp', 'clin'],
-                    'compras': ['mag', 'loja', 'shopping'],
-                    'servicos': ['netflix', 'spotify', 'tim', 'vivo']
+                    'alimentacao': ['cooper', 'mcdonalds', 'nosso pao', 'restaurante', 'cantinho', 'ponto bom', 'tempero', 'donhygino', 'ifd', 'confragrill'],
+                    'transporte': ['posto', 'localiza', 'uber', 'taxi', 'shell', 'br'],
+                    'saude': ['farmacia', 'drogaria', 'hospital', 'clinica'],
+                    'compras': ['magazine', 'loja', 'shopping', 'elite', 'via moveis', 'iphone', 'fazenda'],
+                    'servicos': ['netflix', 'spotify', 'tim', 'vivo', 'apple', 'mercado pago', 'hotel', 'fazenda']
                 }
             },
             'bradesco': {
@@ -231,7 +238,7 @@ class PDFAnalyzer:
                 date_str = f"{date_str}/{year}"
                 date_format = f"{date_format}/%Y"
             
-            # Para BTG e Unicred, converter mês abreviado para português
+            # Para BTG, Unicred e Nubank, converter mês abreviado para português
             if '%b' in date_format:
                 months_pt = {
                     'jan': 'Jan', 'fev': 'Feb', 'mar': 'Mar', 'abr': 'Apr',
@@ -268,6 +275,30 @@ class PDFAnalyzer:
                         text = '\n'.join(lines[i:])
                         break
         
+        # Para Nubank, normalizar espaços e quebras de linha
+        if bank_format == 'nubank':
+            # Normalizar múltiplos espaços em branco
+            text = re.sub(r'\s+', ' ', text)
+            # Normalizar quebras de linha
+            text = re.sub(r'\n+', '\n', text)
+            # Remover linhas vazias
+            lines = [line.strip() for line in text.split('\n') if line.strip()]
+            text = '\n'.join(lines)
+            
+            # Filtrar apenas transações após a seção "TRANSAÇÕES"
+            transacoes_pos = text.find('TRANSAÇÕES')
+            if transacoes_pos != -1:
+                # Pegar texto após a palavra "TRANSAÇÕES"
+                text = text[transacoes_pos:]
+                # Encontrar o início das transações (primeira linha com data válida)
+                lines = text.split('\n')
+                for i, line in enumerate(lines):
+                    # Verificar se a linha contém um padrão de transação válido do Nubank
+                    # Deve ter: data (DD MMM) + •••• XXXX + descrição + R$ valor
+                    if re.search(r'\d{1,2}\s+\w{3}\s+[•\s\d]+\s+.+?\s+R\$\s*[\d.,]+', line):
+                        text = '\n'.join(lines[i:])
+                        break
+        
         # Buscar transações
         transaction_matches = re.finditer(patterns['transaction'], text, re.IGNORECASE | re.MULTILINE)
         
@@ -281,9 +312,6 @@ class PDFAnalyzer:
                     date_str, description, amount_str = groups
                 elif bank_format == 'itau':
                     date_str, description, amount_str = groups
-                    # Para Itaú, adicionar R$ se não estiver presente
-                    if not amount_str.startswith('R$'):
-                        amount_str = amount_str
                 elif bank_format == 'caixa':
                     date_str, description, amount_str = groups
                 elif bank_format == 'bradesco':
@@ -340,6 +368,30 @@ class PDFAnalyzer:
         
         return transactions
 
+    def analyze_pdf_text(self, text):
+        """Analisa texto extraído de um PDF e retorna as transações extraídas"""
+        try:
+            if not text.strip():
+                raise Exception("Texto vazio fornecido")
+            
+            # Detectar formato do banco
+            bank_format = self.detect_bank_format(text)
+            
+            # Extrair transações
+            transactions = self.extract_transactions(text, bank_format)
+            
+            if not transactions:
+                raise Exception("Nenhuma transação encontrada no texto")
+            
+            return {
+                'banco_detectado': bank_format,
+                'total_transacoes': len(transactions),
+                'transacoes': transactions
+            }
+            
+        except Exception as e:
+            raise Exception(f"Erro ao analisar texto: {str(e)}")
+
     def analyze_pdf(self, pdf_path):
         """Analisa um PDF de fatura e retorna as transações extraídas"""
         try:
@@ -349,20 +401,8 @@ class PDFAnalyzer:
             if not text.strip():
                 raise Exception("Não foi possível extrair texto do PDF")
             
-            # Detectar formato do banco
-            bank_format = self.detect_bank_format(text)
-            
-            # Extrair transações
-            transactions = self.extract_transactions(text, bank_format)
-            
-            if not transactions:
-                raise Exception("Nenhuma transação encontrada no PDF")
-            
-            return {
-                'banco_detectado': bank_format,
-                'total_transacoes': len(transactions),
-                'transacoes': transactions
-            }
+            # Usar o método de análise de texto
+            return self.analyze_pdf_text(text)
             
         except Exception as e:
             raise Exception(f"Erro ao analisar PDF: {str(e)}")

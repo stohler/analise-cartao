@@ -1,148 +1,285 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analisador de Faturas de Cartão</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
-</head>
-<body>
-    <div class="container-fluid">
-        <!-- Header -->
-        <header class="row bg-primary text-white py-3 mb-4">
-            <div class="col-12">
-                <h1 class="text-center mb-0">
-                    <i class="fas fa-file-pdf me-2"></i>
-                    Analisador de Faturas de Cartão
-                </h1>
-                <p class="text-center mb-0 mt-2">Analise faturas de 5 bancos diferentes: Nubank, Itaú, Bradesco, Santander e Caixa</p>
+{% extends "base.html" %}
+
+{% block title %}Início - Analisador de PDFs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-upload me-2"></i>Upload e Análise de PDF
+                </h5>
             </div>
-        </header>
-
-        <div class="row">
-            <!-- Upload Section -->
-            <div class="col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header bg-light">
-                        <h3 class="card-title mb-0">
-                            <i class="fas fa-upload me-2"></i>
-                            Upload de Fatura
-                        </h3>
+            <div class="card-body">
+                <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h5>Arraste e solte seu PDF aqui</h5>
+                        <p class="text-muted">ou clique para selecionar um arquivo</p>
+                        <input type="file" name="file" id="fileInput" accept=".pdf" class="d-none">
+                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-folder-open me-2"></i>Selecionar Arquivo
+                        </button>
                     </div>
-                    <div class="card-body">
-                        <div class="upload-area" id="uploadArea">
-                            <div class="upload-content text-center">
-                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                                <p class="mb-2">Clique aqui ou arraste seu PDF</p>
-                                <small class="text-muted">Máximo 16MB</small>
-                                <input type="file" id="fileInput" accept=".pdf" class="d-none">
-                            </div>
-                        </div>
-                        
-                        <div class="mt-3">
-                            <div class="progress d-none" id="uploadProgress">
-                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
-                            </div>
-                        </div>
-
-                        <!-- Supported Banks -->
-                        <div class="mt-4">
-                            <h6 class="fw-bold">Bancos Suportados:</h6>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <span class="badge bg-secondary w-100">Nubank</span>
-                                </div>
-                                <div class="col-6">
-                                    <span class="badge bg-secondary w-100">Itaú</span>
-                                </div>
-                                <div class="col-6">
-                                    <span class="badge bg-secondary w-100">Bradesco</span>
-                                </div>
-                                <div class="col-6">
-                                    <span class="badge bg-secondary w-100">Santander</span>
-                                </div>
-                                <div class="col-12">
-                                    <span class="badge bg-secondary w-100">Caixa</span>
-                                </div>
-                            </div>
+                    <div class="mt-3" id="fileInfo" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-file-pdf me-2"></i>
+                            <span id="fileName"></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearFile()">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
                     </div>
-                </div>
+                    <div class="d-grid mt-3">
+                        <button type="submit" class="btn btn-primary" id="analyzeBtn" disabled>
+                            <i class="fas fa-search me-2"></i>Analisar PDF
+                        </button>
+                    </div>
+                </form>
             </div>
+        </div>
 
-            <!-- Results Section -->
-            <div class="col-lg-8">
-                <div class="card h-100">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h3 class="card-title mb-0">
-                            <i class="fas fa-chart-bar me-2"></i>
-                            Resultados da Análise
-                        </h3>
-                        <div class="btn-group d-none" id="exportButtons">
-                            <button class="btn btn-outline-success btn-sm" onclick="exportData('csv')">
-                                <i class="fas fa-file-csv me-1"></i>CSV
-                            </button>
-                            <button class="btn btn-outline-primary btn-sm" onclick="exportData('excel')">
-                                <i class="fas fa-file-excel me-1"></i>Excel
-                            </button>
-                            <button class="btn btn-outline-info btn-sm" onclick="exportData('json')">
-                                <i class="fas fa-file-code me-1"></i>JSON
-                            </button>
-                        </div>
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Bancos Suportados
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>Nubank</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Itaú</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Bradesco</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Santander</li>
+                        </ul>
                     </div>
-                    <div class="card-body">
-                        <div id="resultsContent">
-                            <div class="text-center text-muted py-5">
-                                <i class="fas fa-inbox fa-3x mb-3"></i>
-                                <p>Nenhuma fatura analisada ainda</p>
-                                <small>Faça upload de um PDF para começar</small>
-                            </div>
-                        </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>BTG Pactual</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Unicred</li>
+                            <li><i class="fas fa-check text-success me-2"></i>C6 Bank</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Caixa</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Loading Modal -->
-    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-body text-center py-4">
-                    <div class="spinner-border text-primary mb-3" role="status">
-                        <span class="visually-hidden">Carregando...</span>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Estatísticas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">{{ stats.total }}</h4>
+                        <small class="text-muted">Transações Locais</small>
                     </div>
-                    <h5>Analisando fatura...</h5>
-                    <p class="mb-0 text-muted">Por favor, aguarde enquanto processamos seu PDF</p>
+                    <div class="col-6">
+                        <h4 class="text-success">{{ mongo_count }}</h4>
+                        <small class="text-muted">MongoDB</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="mb-2">
+                    <strong>Valor Total:</strong>
+                    <span class="float-end">R$ {{ "%.2f"|format(stats.valor_total) }}</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Parceladas:</strong>
+                    <span class="float-end">{{ stats.parceladas }}</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Média por Transação:</strong>
+                    <span class="float-end">R$ {{ "%.2f"|format(stats.valor_total / stats.total if stats.total > 0 else 0) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-database me-2"></i>Status MongoDB
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                {% if mongo_connected %}
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h6 class="text-success">Conectado</h6>
+                    <p class="text-muted small">Pronto para salvar transações</p>
+                {% else %}
+                    <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
+                    <h6 class="text-danger">Desconectado</h6>
+                    <p class="text-muted small">Apenas armazenamento local</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-download me-2"></i>Exportar Dados
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="exportToMongoDB()">
+                        <i class="fas fa-database me-2"></i>Exportar para MongoDB
+                    </button>
+                    <a href="{{ url_for('view_transactions') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i>Ver Transações
+                    </a>
                 </div>
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <!-- Error Modal -->
-    <div class="modal fade" id="errorModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Erro
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p id="errorMessage"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                </div>
-            </div>
-        </div>
-    </div>
+{% block scripts %}
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const analyzeBtn = document.getElementById('analyzeBtn');
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-</body>
-</html>
+    // Drag and drop functionality
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.style.borderColor = '#0d6efd';
+        uploadArea.style.backgroundColor = '#f8f9fa';
+    });
+
+    uploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        uploadArea.style.borderColor = '#dee2e6';
+        uploadArea.style.backgroundColor = 'transparent';
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.style.borderColor = '#dee2e6';
+        uploadArea.style.backgroundColor = 'transparent';
+        
+        const files = e.dataTransfer.files;
+        console.log('Drop event, files:', files.length);
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    });
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        console.log('File input changed, files:', e.target.files.length);
+        if (e.target.files.length > 0) {
+            handleFile(e.target.files[0]);
+        }
+    });
+
+    function handleFile(file) {
+        console.log('File selected:', file.name, file.type);
+        if (file.type === 'application/pdf') {
+            // Store the file for form submission
+            window.selectedFile = file;
+            console.log('File stored for submission');
+            
+            fileName.textContent = file.name;
+            fileInfo.style.display = 'block';
+            analyzeBtn.disabled = false;
+            console.log('PDF file accepted, button enabled. Button disabled:', analyzeBtn.disabled);
+        } else {
+            console.log('Invalid file type:', file.type);
+            showToast('Apenas arquivos PDF são permitidos', 'error');
+        }
+    }
+
+    function clearFile() {
+        fileInput.value = '';
+        fileInfo.style.display = 'none';
+        analyzeBtn.disabled = true;
+    }
+
+    // Form submission
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        console.log('Form submitted!');
+        
+        // Validate file selection
+        if ((!fileInput.files || fileInput.files.length === 0) && !window.selectedFile) {
+            e.preventDefault();
+            showToast('Por favor, selecione um arquivo PDF', 'error');
+            console.log('No file selected, preventing submission');
+            return;
+        }
+        
+        // If we have a selected file but no input file, create a FormData manually
+        if (window.selectedFile && (!fileInput.files || fileInput.files.length === 0)) {
+            e.preventDefault();
+            console.log('Submitting with selected file:', window.selectedFile.name);
+            
+            const formData = new FormData();
+            formData.append('file', window.selectedFile);
+            
+            const originalText = showLoading(analyzeBtn);
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    return response.text();
+                }
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                showToast('Erro ao fazer upload do arquivo', 'error');
+                restoreButton(analyzeBtn, originalText);
+            });
+            
+            return;
+        }
+        
+        const originalText = showLoading(analyzeBtn);
+        
+        // Restore button after 10 seconds as fallback
+        setTimeout(() => {
+            restoreButton(analyzeBtn, originalText);
+        }, 10000);
+    });
+
+    // Debug: Check if button is clickable
+    analyzeBtn.addEventListener('click', function(e) {
+        console.log('Button clicked! Disabled:', this.disabled);
+        if (this.disabled) {
+            e.preventDefault();
+            console.log('Button is disabled, preventing submission');
+        }
+    });
+
+    // Export to MongoDB
+    function exportToMongoDB() {
+        fetch('/api/export_mongodb')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Arquivo ${data.filename} criado com ${data.count} transações`, 'success');
+                } else {
+                    showToast(data.error || 'Erro ao exportar', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Erro ao exportar dados', 'error');
+            });
+    }
+</script>
+{% endblock %}

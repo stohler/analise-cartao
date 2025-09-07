@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Comparativo Mensal - Analisador de PDFs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Comparativo dos Últimos 6 Meses
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-primary">R$ {{ "%.2f"|format(report.summary.total_value_6_months) }}</h4>
+                            <small class="text-muted">Valor Total</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-success">R$ {{ "%.2f"|format(report.summary.average_monthly_value) }}</h4>
+                            <small class="text-muted">Média Mensal</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-info">{{ report.summary.total_transactions_6_months }}</h4>
+                            <small class="text-muted">Total Transações</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-warning">{{ "%.1f"|format(report.summary.installment_percentage) }}%</h4>
+                            <small class="text-muted">Parceladas</small>
+                        </div>
+                    </div>
+                </div>
+
+                <h6>Dados Mensais:</h6>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Mês</th>
+                                <th>Valor Total</th>
+                                <th>Transações</th>
+                                <th>Parceladas</th>
+                                <th>Média por Transação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month, stats in report.monthly_data.items() %}
+                            {% if stats.total_transactions > 0 %}
+                            <tr>
+                                <td><strong>{{ month }}</strong></td>
+                                <td>R$ {{ "%.2f"|format(stats.total_value) }}</td>
+                                <td>{{ stats.total_transactions }}</td>
+                                <td>{{ stats.installments }}</td>
+                                <td>R$ {{ "%.2f"|format(stats.average_transaction) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <h6 class="mt-4">Insights:</h6>
+                <div class="alert alert-info">
+                    {% for insight in report.insights %}
+                    <div class="mb-1">{{ insight }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h6>Por Categoria (6 meses):</h6>
+                        <div class="list-group">
+                            {% for category, value in report.summary.by_category.items() %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ category|title }}
+                                <span class="badge bg-primary rounded-pill">R$ {{ "%.2f"|format(value) }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Por Banco (6 meses):</h6>
+                        <div class="list-group">
+                            {% for bank, count in report.summary.by_bank.items() %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ bank|title }}
+                                <span class="badge bg-secondary rounded-pill">{{ count }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,265 @@
+{
+  "period": "Últimos 6 meses",
+  "card_origin": "Cartão Principal",
+  "generated_at": "2025-09-06T20:32:35.412027",
+  "monthly_data": {
+    "2025-09": {
+      "total_transactions": 3,
+      "total_value": 530.0,
+      "by_category": {
+        "compras": 300.0,
+        "transporte": 80.0,
+        "alimentacao": 150.0
+      },
+      "by_bank": {
+        "nubank": 3
+      },
+      "installments": 1,
+      "merchants": {
+        "Loja": 300.0,
+        "Posto": 80.0,
+        "Supermercado": 150.0
+      },
+      "average_transaction": 176.66666666666666,
+      "top_merchants": [
+        [
+          "Loja",
+          300.0
+        ],
+        [
+          "Supermercado",
+          150.0
+        ],
+        [
+          "Posto",
+          80.0
+        ]
+      ]
+    },
+    "2025-08": {
+      "total_transactions": 2,
+      "total_value": 260.0,
+      "by_category": {
+        "transporte": 90.0,
+        "alimentacao": 170.0
+      },
+      "by_bank": {
+        "nubank": 2
+      },
+      "installments": 0,
+      "merchants": {
+        "Posto": 90.0,
+        "Supermercado": 170.0
+      },
+      "average_transaction": 130.0,
+      "top_merchants": [
+        [
+          "Supermercado",
+          170.0
+        ],
+        [
+          "Posto",
+          90.0
+        ]
+      ]
+    },
+    "2025-07": {
+      "total_transactions": 7,
+      "total_value": 780.4599999999999,
+      "by_category": {
+        "compras": 343.90999999999997,
+        "transporte": 100.0,
+        "alimentacao": 296.99,
+        "servicos": 39.56
+      },
+      "by_bank": {
+        "nubank": 7
+      },
+      "installments": 1,
+      "merchants": {
+        "Loja": 300.0,
+        "Posto": 100.0,
+        "Supermercado": 190.0,
+        "Subadq": 39.56,
+        "Ifd*Napedra": 106.99,
+        "Asa*Peg": 16.38,
+        "Amazon": 27.53
+      },
+      "average_transaction": 111.49428571428571,
+      "top_merchants": [
+        [
+          "Loja",
+          300.0
+        ],
+        [
+          "Supermercado",
+          190.0
+        ],
+        [
+          "Ifd*Napedra",
+          106.99
+        ],
+        [
+          "Posto",
+          100.0
+        ],
+        [
+          "Subadq",
+          39.56
+        ]
+      ]
+    },
+    "2025-06": {
+      "total_transactions": 5,
+      "total_value": 1795.82,
+      "by_category": {
+        "transporte": 110.0,
+        "alimentacao": 210.0,
+        "saude": 1424.0,
+        "compras": 51.82
+      },
+      "by_bank": {
+        "nubank": 5
+      },
+      "installments": 3,
+      "merchants": {
+        "Posto": 110.0,
+        "Supermercado": 210.0,
+        "Sn": 1075.0,
+        "Doctoraliabrazil": 349.0,
+        "Disal": 51.82
+      },
+      "average_transaction": 359.164,
+      "top_merchants": [
+        [
+          "Sn",
+          1075.0
+        ],
+        [
+          "Doctoraliabrazil",
+          349.0
+        ],
+        [
+          "Supermercado",
+          210.0
+        ],
+        [
+          "Posto",
+          110.0
+        ],
+        [
+          "Disal",
+          51.82
+        ]
+      ]
+    },
+    "2025-05": {
+      "total_transactions": 3,
+      "total_value": 650.0,
+      "by_category": {
+        "compras": 300.0,
+        "transporte": 120.0,
+        "alimentacao": 230.0
+      },
+      "by_bank": {
+        "nubank": 3
+      },
+      "installments": 1,
+      "merchants": {
+        "Loja": 300.0,
+        "Posto": 120.0,
+        "Supermercado": 230.0
+      },
+      "average_transaction": 216.66666666666666,
+      "top_merchants": [
+        [
+          "Loja",
+          300.0
+        ],
+        [
+          "Supermercado",
+          230.0
+        ],
+        [
+          "Posto",
+          120.0
+        ]
+      ]
+    },
+    "2025-04": {
+      "total_transactions": 2,
+      "total_value": 380.0,
+      "by_category": {
+        "transporte": 130.0,
+        "alimentacao": 250.0
+      },
+      "by_bank": {
+        "nubank": 2
+      },
+      "installments": 0,
+      "merchants": {
+        "Posto": 130.0,
+        "Supermercado": 250.0
+      },
+      "average_transaction": 190.0,
+      "top_merchants": [
+        [
+          "Supermercado",
+          250.0
+        ],
+        [
+          "Posto",
+          130.0
+        ]
+      ]
+    }
+  },
+  "trends": {
+    "value_trend": -1,
+    "transaction_count_trend": 0,
+    "average_trend": 0,
+    "category_trends": {},
+    "monthly_changes": {
+      "2025-05": {
+        "value_change_percent": 71.05263157894737,
+        "transaction_change": 1,
+        "average_change_percent": 0
+      },
+      "2025-06": {
+        "value_change_percent": 176.28,
+        "transaction_change": 2,
+        "average_change_percent": 0
+      },
+      "2025-07": {
+        "value_change_percent": -56.54018776937555,
+        "transaction_change": 2,
+        "average_change_percent": 0
+      },
+      "2025-08": {
+        "value_change_percent": -66.68631319990774,
+        "transaction_change": -5,
+        "average_change_percent": 0
+      },
+      "2025-09": {
+        "value_change_percent": 103.84615384615385,
+        "transaction_change": 1,
+        "average_change_percent": 0
+      }
+    }
+  },
+  "insights": [
+    "📉 Tendência de redução nos gastos nos últimos meses",
+    "💰 Maior gasto: 2025-06 (R$ 1795.82)",
+    "🏷️ Categoria com maior gasto: saude (R$ 1424.00)",
+    "📅 27.3% das transações são parceladas"
+  ],
+  "summary": {
+    "total_value_6_months": 4396.28,
+    "total_transactions_6_months": 22,
+    "total_installments_6_months": 6,
+    "average_monthly_value": 732.7133333333333,
+    "average_transaction_value": 199.83090909090907,
+    "months_with_activity": 6,
+    "installment_percentage": 27.27272727272727
+  }
+}
