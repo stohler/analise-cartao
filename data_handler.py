@@ -337,6 +337,87 @@ class DataHandler:
                 return transaction
         return None
     
+    def remove_transaction(self, transaction_hash: str) -> Dict:
+        """
+        Remove uma transação específica pelo hash
+        
+        Args:
+            transaction_hash: Hash da transação a ser removida
+            
+        Returns:
+            Dict: Resultado da operação
+        """
+        try:
+            for i, transaction in enumerate(self.transactions):
+                if transaction.get('transaction_hash') == transaction_hash:
+                    # Remover transação
+                    removed_transaction = self.transactions.pop(i)
+                    
+                    # Salvar alterações
+                    if self.save_data():
+                        return {
+                            'success': True,
+                            'message': f'Transação removida com sucesso: {removed_transaction.get("descricao", "N/A")}',
+                            'removed_transaction': removed_transaction
+                        }
+                    else:
+                        # Restaurar transação se não conseguiu salvar
+                        self.transactions.insert(i, removed_transaction)
+                        return {
+                            'success': False,
+                            'message': 'Erro ao salvar alterações no arquivo'
+                        }
+            
+            return {
+                'success': False,
+                'message': 'Transação não encontrada'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Erro ao remover transação: {e}'
+            }
+    
+    def remove_all_transactions(self) -> Dict:
+        """
+        Remove todas as transações
+        
+        Returns:
+            Dict: Resultado da operação
+        """
+        try:
+            total_count = len(self.transactions)
+            
+            if total_count == 0:
+                return {
+                    'success': True,
+                    'message': 'Nenhuma transação para remover',
+                    'removed_count': 0
+                }
+            
+            # Limpar lista de transações
+            self.transactions.clear()
+            
+            # Salvar alterações
+            if self.save_data():
+                return {
+                    'success': True,
+                    'message': f'Todas as {total_count} transações foram removidas com sucesso',
+                    'removed_count': total_count
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': 'Erro ao salvar alterações no arquivo'
+                }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Erro ao remover todas as transações: {e}'
+            }
+
     def get_statistics(self) -> Dict:
         """
         Retorna estatísticas das transações

@@ -13,7 +13,7 @@
                 <div>
                     <span class="badge bg-primary me-2">Local: {{ local_transactions|length }}</span>
                     {% if mongo_connected %}
-                    <span class="badge bg-success">MongoDB: {{ mongo_transactions|length }}</span>
+                    <span class="badge bg-success" id="mongo-count">MongoDB: {{ mongo_transactions|length }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -35,6 +35,13 @@
                 <div class="tab-content" id="transactionsTabContent">
                     <div class="tab-pane fade show active" id="local" role="tabpanel">
                         {% if local_transactions %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <button class="btn btn-danger btn-sm" onclick="removeAllTransactions('local')">
+                                    <i class="fas fa-trash me-1"></i>Remover Todas
+                                </button>
+                            </div>
+                        </div>
                         <div class="table-responsive mt-3">
                             <table class="table table-striped table-hover">
                                 <thead>
@@ -46,6 +53,7 @@
                                         <th>Banco</th>
                                         <th>Origem</th>
                                         <th>Parcelado</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -68,6 +76,13 @@
                                                 <span class="badge bg-success">Não</span>
                                             {% endif %}
                                         </td>
+                                        <td>
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="removeTransaction('{{ trans.transaction_hash }}', 'local')"
+                                                    title="Remover transação">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -87,7 +102,77 @@
                     
                     {% if mongo_connected %}
                     <div class="tab-pane fade" id="mongo" role="tabpanel">
-                        {% if mongo_transactions %}
+                        <!-- Filtros para MongoDB -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label for="keyword-filter" class="form-label">Palavra-chave</label>
+                                        <input type="text" class="form-control" id="keyword-filter" placeholder="Buscar na descrição...">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="start-date-filter" class="form-label">Data Início</label>
+                                        <input type="date" class="form-control" id="start-date-filter">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="end-date-filter" class="form-label">Data Fim</label>
+                                        <input type="date" class="form-control" id="end-date-filter">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="card-origin-filter" class="form-label">Origem do Cartão</label>
+                                        <select class="form-select" id="card-origin-filter">
+                                            <option value="">Todas</option>
+                                            <option value="Cartão Principal">Cartão Principal</option>
+                                            <option value="Cartão Adicional">Cartão Adicional</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="banco-filter" class="form-label">Banco</label>
+                                        <select class="form-select" id="banco-filter">
+                                            <option value="">Todos</option>
+                                            <option value="btg">BTG</option>
+                                            <option value="c6">C6</option>
+                                            <option value="nubank">Nubank</option>
+                                            <option value="inter">Inter</option>
+                                            <option value="itau">Itaú</option>
+                                            <option value="bradesco">Bradesco</option>
+                                            <option value="santander">Santander</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="per-page-filter" class="form-label">Por Página</label>
+                                        <select class="form-select" id="per-page-filter">
+                                            <option value="10">10</option>
+                                            <option value="20" selected>20</option>
+                                            <option value="50">50</option>
+                                            <option value="100">100</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-1 d-flex align-items-end">
+                                        <button class="btn btn-primary" onclick="applyFilters()">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Controles de ação -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <button class="btn btn-danger btn-sm" onclick="removeAllTransactions('mongodb')">
+                                    <i class="fas fa-trash me-1"></i>Remover Todas
+                                </button>
+                            </div>
+                            <div id="mongo-pagination-info" class="text-muted">
+                                <!-- Informações de paginação serão inseridas aqui -->
+                            </div>
+                        </div>
+                        
+                        <!-- Tabela de transações MongoDB -->
                         <div class="table-responsive mt-3">
                             <table class="table table-striped table-hover">
                                 <thead>
@@ -99,43 +184,21 @@
                                         <th>Banco</th>
                                         <th>Origem</th>
                                         <th>Parcelado</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {% for trans in mongo_transactions %}
-                                    <tr>
-                                        <td>{{ trans.data }}</td>
-                                        <td>{{ trans.descricao }}</td>
-                                        <td>R$ {{ "%.2f"|format(trans.valor) }}</td>
-                                        <td>
-                                            <span class="badge bg-secondary category-badge">{{ trans.categoria }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-info">{{ trans.banco }}</span>
-                                        </td>
-                                        <td>{{ trans.origem_cartao or 'N/A' }}</td>
-                                        <td>
-                                            {% if trans.parcelado == 'Sim' %}
-                                                <span class="badge bg-warning">{{ trans.parcela_atual }}/{{ trans.parcela_total }}</span>
-                                            {% else %}
-                                                <span class="badge bg-success">Não</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
+                                <tbody id="mongo-transactions-tbody">
+                                    <!-- Transações serão carregadas via JavaScript -->
                                 </tbody>
                             </table>
                         </div>
-                        {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-database fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">Nenhuma transação no MongoDB</h5>
-                            <p class="text-muted">Use o botão "Salvar no MongoDB" após analisar um PDF</p>
-                            <a href="{{ url_for('index') }}" class="btn btn-success">
-                                <i class="fas fa-upload me-2"></i>Analisar PDF
-                            </a>
-                        </div>
-                        {% endif %}
+                        
+                        <!-- Paginação -->
+                        <nav aria-label="Paginação MongoDB">
+                            <ul class="pagination justify-content-center" id="mongo-pagination">
+                                <!-- Botões de paginação serão inseridos aqui -->
+                            </ul>
+                        </nav>
                     </div>
                     {% endif %}
                 </div>
@@ -143,4 +206,271 @@
         </div>
     </div>
 </div>
+
+<script>
+let currentPage = 1;
+let currentFilters = {};
+
+// Função para obter data de 60 dias atrás
+function getDate60DaysAgo() {
+    const date = new Date();
+    date.setDate(date.getDate() - 60);
+    return date.toISOString().split('T')[0];
+}
+
+// Função para obter data de hoje
+function getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+}
+
+// Carregar transações do MongoDB quando a aba for ativada
+document.getElementById('mongo-tab').addEventListener('click', function() {
+    // Definir filtros padrão dos últimos 60 dias
+    if (!document.getElementById('start-date-filter').value) {
+        document.getElementById('start-date-filter').value = getDate60DaysAgo();
+    }
+    if (!document.getElementById('end-date-filter').value) {
+        document.getElementById('end-date-filter').value = getTodayDate();
+    }
+    
+    loadMongoTransactions();
+});
+
+// Função para carregar transações do MongoDB
+function loadMongoTransactions(page = 1) {
+    const params = new URLSearchParams({
+        page: page,
+        per_page: document.getElementById('per-page-filter').value,
+        ...currentFilters
+    });
+    
+    fetch(`/api/transactions/mongodb?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayMongoTransactions(data.transactions);
+                updatePagination(data.pagination);
+                currentPage = page;
+            } else {
+                showAlert('Erro ao carregar transações: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            showAlert('Erro ao carregar transações', 'danger');
+        });
+}
+
+// Função para exibir transações do MongoDB
+function displayMongoTransactions(transactions) {
+    const tbody = document.getElementById('mongo-transactions-tbody');
+    
+    if (transactions.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-4">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <br>Nenhuma transação encontrada
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = transactions.map(trans => `
+        <tr>
+            <td>${trans.data || 'N/A'}</td>
+            <td>${trans.descricao || 'N/A'}</td>
+            <td>R$ ${(trans.valor || 0).toFixed(2)}</td>
+            <td><span class="badge bg-secondary">${trans.categoria || 'outros'}</span></td>
+            <td><span class="badge bg-info">${trans.banco || 'N/A'}</span></td>
+            <td>${trans.origem_cartao || 'N/A'}</td>
+            <td>
+                ${trans.parcelado === 'Sim' 
+                    ? `<span class="badge bg-warning">${trans.parcela_atual}/${trans.parcela_total}</span>`
+                    : '<span class="badge bg-success">Não</span>'
+                }
+            </td>
+            <td>
+                <button class="btn btn-outline-danger btn-sm" 
+                        onclick="removeTransaction('${trans.transaction_hash}', 'mongodb')"
+                        title="Remover transação">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Função para atualizar paginação
+function updatePagination(pagination) {
+    const paginationEl = document.getElementById('mongo-pagination');
+    const infoEl = document.getElementById('mongo-pagination-info');
+    
+    // Atualizar informações
+    infoEl.innerHTML = `
+        Página ${pagination.page} de ${pagination.total_pages} 
+        (${pagination.total_count} transações)
+    `;
+    
+    // Criar botões de paginação
+    let paginationHTML = '';
+    
+    // Botão anterior
+    if (pagination.has_prev) {
+        paginationHTML += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadMongoTransactions(${pagination.prev_page})">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+        `;
+    }
+    
+    // Botões de página
+    const startPage = Math.max(1, pagination.page - 2);
+    const endPage = Math.min(pagination.total_pages, pagination.page + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        paginationHTML += `
+            <li class="page-item ${i === pagination.page ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="loadMongoTransactions(${i})">${i}</a>
+            </li>
+        `;
+    }
+    
+    // Botão próximo
+    if (pagination.has_next) {
+        paginationHTML += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadMongoTransactions(${pagination.next_page})">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        `;
+    }
+    
+    paginationEl.innerHTML = paginationHTML;
+}
+
+// Função para aplicar filtros
+function applyFilters() {
+    currentFilters = {
+        keyword: document.getElementById('keyword-filter').value || undefined,
+        start_date: document.getElementById('start-date-filter').value || undefined,
+        end_date: document.getElementById('end-date-filter').value || undefined,
+        card_origin: document.getElementById('card-origin-filter').value || undefined,
+        banco: document.getElementById('banco-filter').value || undefined
+    };
+    
+    // Remover valores vazios
+    Object.keys(currentFilters).forEach(key => {
+        if (!currentFilters[key]) {
+            delete currentFilters[key];
+        }
+    });
+    
+    loadMongoTransactions(1);
+}
+
+// Função para remover uma transação
+function removeTransaction(transactionHash, storageType) {
+    if (!confirm('Tem certeza que deseja remover esta transação?')) {
+        return;
+    }
+    
+    fetch('/api/transactions/remove', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            transaction_hash: transactionHash,
+            storage_type: storageType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            
+            if (storageType === 'local') {
+                // Recarregar página para atualizar transações locais
+                location.reload();
+            } else {
+                // Recarregar transações do MongoDB
+                loadMongoTransactions(currentPage);
+            }
+        } else {
+            showAlert('Erro: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showAlert('Erro ao remover transação', 'danger');
+    });
+}
+
+// Função para remover todas as transações
+function removeAllTransactions(storageType) {
+    const message = storageType === 'local' 
+        ? 'Tem certeza que deseja remover TODAS as transações locais? Esta ação não pode ser desfeita!'
+        : 'Tem certeza que deseja remover TODAS as transações do MongoDB? Esta ação não pode ser desfeita!';
+    
+    if (!confirm(message)) {
+        return;
+    }
+    
+    fetch('/api/transactions/remove_all', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            storage_type: storageType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            
+            if (storageType === 'local') {
+                // Recarregar página para atualizar transações locais
+                location.reload();
+            } else {
+                // Recarregar transações do MongoDB
+                loadMongoTransactions(1);
+            }
+        } else {
+            showAlert('Erro: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showAlert('Erro ao remover transações', 'danger');
+    });
+}
+
+// Função para mostrar alertas
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Inserir no topo da página
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Remover automaticamente após 5 segundos
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
 {% endblock %}

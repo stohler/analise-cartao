@@ -103,20 +103,47 @@ class MongoDBHandler:
         existing = self.collection.find_one({"transaction_hash": transaction_hash})
         return existing is not None
     
+    def convert_date_to_iso(self, date_str: str) -> datetime:
+        """
+        Converte data do formato DD/MM/YYYY para ISODate
+        
+        Args:
+            date_str: Data no formato DD/MM/YYYY
+            
+        Returns:
+            datetime: Objeto datetime para ISODate
+        """
+        if not date_str:
+            return None
+            
+        try:
+            day, month, year = date_str.split('/')
+            return datetime(int(year), int(month), int(day))
+        except:
+            return None
+
     def add_card_origin(self, transactions: List[Dict], card_origin: str) -> List[Dict]:
         """
-        Adiciona a origem do cartão às transações
+        Adiciona a origem do cartão às transações e converte datas para ISODate
         
         Args:
             transactions: Lista de transações
             card_origin: Origem do cartão (ex: "Cartão Principal", "Cartão Adicional")
             
         Returns:
-            List[Dict]: Lista de transações com origem do cartão adicionada
+            List[Dict]: Lista de transações com origem do cartão adicionada e datas convertidas
         """
         for transaction in transactions:
             transaction['origem_cartao'] = card_origin
-            transaction['data_importacao'] = datetime.now().isoformat()
+            transaction['data_importacao'] = datetime.now()
+            
+            # Converter data para ISODate se estiver no formato DD/MM/YYYY
+            if 'data' in transaction and transaction['data']:
+                iso_date = self.convert_date_to_iso(transaction['data'])
+                if iso_date:
+                    transaction['data_iso'] = iso_date
+                    # Manter a data original como string para compatibilidade
+                    # transaction['data'] = transaction['data']  # Manter formato original
             
         return transactions
     
@@ -631,6 +658,222 @@ class MongoDBHandler:
         except Exception as e:
             print(f"❌ Erro ao buscar transação: {e}")
             return None
+
+    def remove_transaction(self, transaction_hash: str) -> Dict:
+        """
+        Remove uma transação específica pelo hash
+        
+        Args:
+            transaction_hash: Hash da transação a ser removida
+            
+        Returns:
+            Dict: Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            # Buscar transação para obter informações antes de remover
+            transaction = self.collection.find_one({"transaction_hash": transaction_hash})
+            if not transaction:
+                return {'success': False, 'message': 'Transação não encontrada'}
+            
+            # Remover transação
+            result = self.collection.delete_one({"transaction_hash": transaction_hash})
+            
+            if result.deleted_count > 0:
+                return {
+                    'success': True,
+                    'message': f'Transação removida com sucesso: {transaction.get("descricao", "N/A")}',
+                    'removed_transaction': transaction
+                }
+            else:
+                return {'success': False, 'message': 'Erro ao remover transação'}
+                
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao remover transação: {str(e)}'}
+    
+    def remove_all_transactions(self) -> Dict:
+        """
+        Remove todas as transações
+        
+        Returns:
+            Dict: Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            # Contar transações antes de remover
+            total_count = self.collection.count_documents({})
+            
+            if total_count == 0:
+                return {
+                    'success': True,
+                    'message': 'Nenhuma transação para remover',
+                    'removed_count': 0
+                }
+            
+            # Remover todas as transações
+            result = self.collection.delete_many({})
+            
+            if result.deleted_count > 0:
+                return {
+                    'success': True,
+                    'message': f'Todas as {result.deleted_count} transações foram removidas com sucesso',
+                    'removed_count': result.deleted_count
+                }
+            else:
+                return {'success': False, 'message': 'Erro ao remover transações'}
+                
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao remover todas as transações: {str(e)}'}
+    
+    def convert_date_format(self, date_str: str, from_format: str = 'YYYY-MM-DD', to_format: str = 'DD/MM/YYYY') -> str:
+        """
+        Converte formato de data entre YYYY-MM-DD e DD/MM/YYYY
+        
+        Args:
+            date_str: String da data
+            from_format: Formato de origem ('YYYY-MM-DD' ou 'DD/MM/YYYY')
+            to_format: Formato de destino ('YYYY-MM-DD' ou 'DD/MM/YYYY')
+            
+        Returns:
+            str: Data no formato de destino
+        """
+        if not date_str:
+            return date_str
+            
+        try:
+            if from_format == 'YYYY-MM-DD' and to_format == 'DD/MM/YYYY':
+                # Converter de YYYY-MM-DD para DD/MM/YYYY
+                year, month, day = date_str.split('-')
+                return f"{day}/{month}/{year}"
+            elif from_format == 'DD/MM/YYYY' and to_format == 'YYYY-MM-DD':
+                # Converter de DD/MM/YYYY para YYYY-MM-DD
+                day, month, year = date_str.split('/')
+                return f"{year}-{month}-{day}"
+            else:
+                return date_str
+        except:
+            return date_str
+    
+    def parse_date_to_comparable(self, date_str: str) -> str:
+        """
+        Converte data no formato DD/MM/YYYY para formato comparável YYYYMMDD
+        
+        Args:
+            date_str: Data no formato DD/MM/YYYY
+            
+        Returns:
+            str: Data no formato YYYYMMDD para comparação
+        """
+        if not date_str:
+            return date_str
+            
+        try:
+            day, month, year = date_str.split('/')
+            return f"{year}{month.zfill(2)}{day.zfill(2)}"
+        except:
+            return date_str
+
+    def get_transactions_paginated(self, page: int = 1, per_page: int = 20, keyword: str = None, 
+                                 start_date: str = None, end_date: str = None, card_origin: str = None, 
+                                 banco: str = None) -> Dict:
+        """
+        Retorna transações paginadas com filtros opcionais
+        
+        Args:
+            page: Número da página (começando em 1)
+            per_page: Número de transações por página
+            keyword: Palavra-chave para buscar na descrição
+            start_date: Data de início (formato YYYY-MM-DD ou DD/MM/YYYY)
+            end_date: Data de fim (formato YYYY-MM-DD ou DD/MM/YYYY)
+            card_origin: Origem do cartão
+            banco: Nome do banco
+            
+        Returns:
+            Dict: Resultado com transações e metadados de paginação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            # Construir query de filtro
+            query = {}
+            
+            # Filtro por palavra-chave
+            if keyword:
+                query['descricao'] = {'$regex': keyword, '$options': 'i'}
+            
+            # Filtro por data - usar campo data_iso quando disponível
+            if start_date and end_date:
+                # Converter datas para datetime
+                start_datetime = datetime.fromisoformat(start_date)
+                end_datetime = datetime.fromisoformat(end_date)
+                query['data_iso'] = {'$gte': start_datetime, '$lte': end_datetime}
+            elif start_date:
+                start_datetime = datetime.fromisoformat(start_date)
+                query['data_iso'] = {'$gte': start_datetime}
+            elif end_date:
+                end_datetime = datetime.fromisoformat(end_date)
+                query['data_iso'] = {'$lte': end_datetime}
+            
+            # Filtro por origem do cartão
+            if card_origin:
+                query['origem_cartao'] = card_origin
+            
+            # Filtro por banco
+            if banco:
+                query['banco'] = banco
+            
+            # Calcular skip para paginação
+            skip = (page - 1) * per_page
+            
+            # Buscar transações
+            cursor = self.collection.find(query).sort("data_importacao", -1).skip(skip).limit(per_page)
+            transactions = []
+            for doc in cursor:
+                # Converter ObjectId para string para serialização JSON
+                if '_id' in doc:
+                    doc['_id'] = str(doc['_id'])
+                # Converter data_iso para string se existir
+                if 'data_iso' in doc and doc['data_iso']:
+                    doc['data_iso'] = doc['data_iso'].isoformat()
+                transactions.append(doc)
+            
+            # Contar total de transações que atendem aos filtros
+            total_count = self.collection.count_documents(query)
+            
+            # Calcular metadados de paginação
+            total_pages = (total_count + per_page - 1) // per_page
+            has_prev = page > 1
+            has_next = page < total_pages
+            
+            return {
+                'success': True,
+                'transactions': transactions,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total_count': total_count,
+                    'total_pages': total_pages,
+                    'has_prev': has_prev,
+                    'has_next': has_next,
+                    'prev_page': page - 1 if has_prev else None,
+                    'next_page': page + 1 if has_next else None
+                },
+                'filters': {
+                    'keyword': keyword,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'card_origin': card_origin,
+                    'banco': banco
+                }
+            }
+            
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao buscar transações: {str(e)}'}
 
     def initialize_default_categories(self) -> Dict:
         """

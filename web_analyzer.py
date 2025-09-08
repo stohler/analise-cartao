@@ -471,6 +471,82 @@ def api_delete_category(category_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/transactions/remove', methods=['POST'])
+def api_remove_transaction():
+    """API para remover uma transação específica"""
+    try:
+        data = request.get_json()
+        transaction_hash = data.get('transaction_hash')
+        storage_type = data.get('storage_type', 'local')  # 'local' ou 'mongodb'
+        
+        if not transaction_hash:
+            return jsonify({'success': False, 'message': 'Hash da transação é obrigatório'}), 400
+        
+        if storage_type == 'local':
+            result = data_handler.remove_transaction(transaction_hash)
+        elif storage_type == 'mongodb':
+            if not MONGODB_AVAILABLE or not mongo_handler:
+                return jsonify({'success': False, 'message': 'MongoDB não disponível'}), 400
+            result = mongo_handler.remove_transaction(transaction_hash)
+        else:
+            return jsonify({'success': False, 'message': 'Tipo de armazenamento inválido'}), 400
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro ao remover transação: {str(e)}'}), 500
+
+@app.route('/api/transactions/remove_all', methods=['POST'])
+def api_remove_all_transactions():
+    """API para remover todas as transações"""
+    try:
+        data = request.get_json()
+        storage_type = data.get('storage_type', 'local')  # 'local' ou 'mongodb'
+        
+        if storage_type == 'local':
+            result = data_handler.remove_all_transactions()
+        elif storage_type == 'mongodb':
+            if not MONGODB_AVAILABLE or not mongo_handler:
+                return jsonify({'success': False, 'message': 'MongoDB não disponível'}), 400
+            result = mongo_handler.remove_all_transactions()
+        else:
+            return jsonify({'success': False, 'message': 'Tipo de armazenamento inválido'}), 400
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro ao remover todas as transações: {str(e)}'}), 500
+
+@app.route('/api/transactions/mongodb')
+def api_get_mongodb_transactions():
+    """API para obter transações do MongoDB com paginação e filtros"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_handler:
+            return jsonify({'error': 'MongoDB não disponível'}), 400
+        
+        # Parâmetros de paginação
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        
+        # Parâmetros de filtro
+        keyword = request.args.get('keyword', '').strip() or None
+        start_date = request.args.get('start_date', '').strip() or None
+        end_date = request.args.get('end_date', '').strip() or None
+        card_origin = request.args.get('card_origin', '').strip() or None
+        banco = request.args.get('banco', '').strip() or None
+        
+        result = mongo_handler.get_transactions_paginated(
+            page=page,
+            per_page=per_page,
+            keyword=keyword,
+            start_date=start_date,
+            end_date=end_date,
+            card_origin=card_origin,
+            banco=banco
+        )
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     print("🌐 Iniciando servidor web...")
     print("📊 Interface disponível em: http://localhost:5000")
