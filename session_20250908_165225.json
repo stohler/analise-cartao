@@ -1,0 +1,170 @@
+{
+  "filename": "c6.pdf",
+  "analysis_result": {
+    "banco_detectado": "c6",
+    "total_transacoes": 16,
+    "transacoes": [
+      {
+        "data": "12/11/2025",
+        "descricao": "PG *LUIZ HENRIQUE PINT - Parcela 9/10",
+        "parcelado": "Sim",
+        "parcela_atual": 9,
+        "parcela_total": 10,
+        "valor": 132.97,
+        "categoria": "outros",
+        "banco": "c6"
+      },
+      {
+        "data": "28/11/2025",
+        "descricao": "PG *FLEXFORM - Parcela 9/10",
+        "parcelado": "Sim",
+        "parcela_atual": 9,
+        "parcela_total": 10,
+        "valor": 90.0,
+        "categoria": "compras",
+        "banco": "c6"
+      },
+      {
+        "data": "14/01/2025",
+        "descricao": "PG *FLEXFORM - Parcela 7/12",
+        "parcelado": "Sim",
+        "parcela_atual": 7,
+        "parcela_total": 12,
+        "valor": 100.0,
+        "categoria": "compras",
+        "banco": "c6"
+      },
+      {
+        "data": "27/04/2025",
+        "descricao": "PAYPAL *KEEPRUNNING K - Parcela 4/5",
+        "parcelado": "Sim",
+        "parcela_atual": 4,
+        "parcela_total": 5,
+        "valor": 156.76,
+        "categoria": "servicos",
+        "banco": "c6"
+      },
+      {
+        "data": "04/06/2025",
+        "descricao": "AMAZON BR - Parcela 3/4",
+        "parcelado": "Sim",
+        "parcela_atual": 3,
+        "parcela_total": 4,
+        "valor": 121.44,
+        "categoria": "compras",
+        "banco": "c6"
+      },
+      {
+        "data": "18/07/2025",
+        "descricao": "LATAM AIR - Parcela 1/4",
+        "parcelado": "Sim",
+        "parcela_atual": 1,
+        "parcela_total": 4,
+        "valor": 280.0,
+        "categoria": "transporte",
+        "banco": "c6"
+      },
+      {
+        "data": "19/07/2025",
+        "descricao": "MICROSOFT*XBOX",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 10.95,
+        "categoria": "servicos",
+        "banco": "c6"
+      },
+      {
+        "data": "20/07/2025",
+        "descricao": "MICROSOFT*XBOX",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 18.45,
+        "categoria": "servicos",
+        "banco": "c6"
+      },
+      {
+        "data": "21/07/2025",
+        "descricao": "SC JARAGUA *P17ESPACO",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 99.74,
+        "categoria": "outros",
+        "banco": "c6"
+      },
+      {
+        "data": "01/08/2025",
+        "descricao": "MICROSOFT*SUBSCRIPTION",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 59.99,
+        "categoria": "servicos",
+        "banco": "c6"
+      },
+      {
+        "data": "01/08/2025",
+        "descricao": "GOOGLE GSUITE_PAGDIVID",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 283.15,
+        "categoria": "servicos",
+        "banco": "c6"
+      },
+      {
+        "data": "02/08/2025",
+        "descricao": "MICROSOFT*XBOX",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 22.45,
+        "categoria": "servicos",
+        "banco": "c6"
+      },
+      {
+        "data": "15/10/2025",
+        "descricao": "MYSADIGITAL - Parcela 10/18",
+        "parcelado": "Sim",
+        "parcela_atual": 10,
+        "parcela_total": 18,
+        "valor": 768.77,
+        "categoria": "compras",
+        "banco": "c6"
+      },
+      {
+        "data": "29/07/2025",
+        "descricao": "IFD*IFOOD CLUB",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 12.9,
+        "categoria": "alimentacao",
+        "banco": "c6"
+      },
+      {
+        "data": "03/08/2025",
+        "descricao": "Anuidade Diferenciada - Parcela 2/12",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 12,
+        "valor": 98.0,
+        "categoria": "servicos",
+        "banco": "c6"
+      },
+      {
+        "data": "08/09/2025",
+        "descricao": "33690.00009 00000.010132 06246.793142 1",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 11740000254542.0,
+        "categoria": "outros",
+        "banco": "c6"
+      }
+    ]
+  },
+  "timestamp": "2025-09-08T16:52:25.213747"
+}

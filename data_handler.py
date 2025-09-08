@@ -218,6 +218,125 @@ class DataHandler:
         """
         return self.transactions.copy()
     
+    def update_transaction_category(self, transaction_hash: str, new_category: str) -> Dict:
+        """
+        Atualiza a categoria de uma transação específica
+        
+        Args:
+            transaction_hash: Hash da transação a ser atualizada
+            new_category: Nova categoria
+            
+        Returns:
+            Dict: Resultado da operação
+        """
+        try:
+            for i, transaction in enumerate(self.transactions):
+                if transaction.get('transaction_hash') == transaction_hash:
+                    # Atualizar categoria
+                    old_category = transaction.get('categoria', 'outros')
+                    self.transactions[i]['categoria'] = new_category
+                    self.transactions[i]['data_atualizacao'] = datetime.now().isoformat()
+                    
+                    # Salvar alterações
+                    if self.save_data():
+                        return {
+                            'success': True,
+                            'message': f'Categoria atualizada de "{old_category}" para "{new_category}"',
+                            'old_category': old_category,
+                            'new_category': new_category
+                        }
+                    else:
+                        return {
+                            'success': False,
+                            'message': 'Erro ao salvar alterações no arquivo'
+                        }
+            
+            return {
+                'success': False,
+                'message': 'Transação não encontrada'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Erro ao atualizar categoria: {e}'
+            }
+    
+    def update_transaction(self, transaction_hash: str, updates: Dict) -> Dict:
+        """
+        Atualiza uma transação específica
+        
+        Args:
+            transaction_hash: Hash da transação a ser atualizada
+            updates: Dicionário com os campos a serem atualizados
+            
+        Returns:
+            Dict: Resultado da operação
+        """
+        try:
+            for i, transaction in enumerate(self.transactions):
+                if transaction.get('transaction_hash') == transaction_hash:
+                    # Atualizar campos permitidos
+                    allowed_fields = ['categoria', 'descricao', 'valor', 'origem_cartao']
+                    updated_fields = []
+                    
+                    for field, value in updates.items():
+                        if field in allowed_fields:
+                            old_value = transaction.get(field)
+                            self.transactions[i][field] = value
+                            updated_fields.append(f"{field}: '{old_value}' → '{value}'")
+                    
+                    if updated_fields:
+                        self.transactions[i]['data_atualizacao'] = datetime.now().isoformat()
+                        
+                        # Recalcular hash se campos chave foram alterados
+                        if any(field in ['data', 'descricao', 'valor', 'banco', 'origem_cartao'] for field in updates.keys()):
+                            self.transactions[i]['transaction_hash'] = self.generate_transaction_hash(self.transactions[i])
+                        
+                        # Salvar alterações
+                        if self.save_data():
+                            return {
+                                'success': True,
+                                'message': f'Transação atualizada: {", ".join(updated_fields)}',
+                                'updated_fields': updated_fields
+                            }
+                        else:
+                            return {
+                                'success': False,
+                                'message': 'Erro ao salvar alterações no arquivo'
+                            }
+                    else:
+                        return {
+                            'success': False,
+                            'message': 'Nenhum campo válido para atualização'
+                        }
+            
+            return {
+                'success': False,
+                'message': 'Transação não encontrada'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Erro ao atualizar transação: {e}'
+            }
+    
+    def get_transaction_by_hash(self, transaction_hash: str) -> Optional[Dict]:
+        """
+        Busca uma transação pelo hash
+        
+        Args:
+            transaction_hash: Hash da transação
+            
+        Returns:
+            Dict ou None: Transação encontrada ou None
+        """
+        for transaction in self.transactions:
+            if transaction.get('transaction_hash') == transaction_hash:
+                return transaction
+        return None
+    
     def get_statistics(self) -> Dict:
         """
         Retorna estatísticas das transações

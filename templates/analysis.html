@@ -91,7 +91,7 @@
             </div>
             <div class="card-body">
                 <form id="saveForm">
-                    <input type="hidden" id="sessionFile" value="{{ session_data.filename }}">
+                    <input type="hidden" id="sessionFile" value="{{ session_file }}">
                     
                     <div class="mb-3">
                         <label for="cardOrigin" class="form-label">Origem do Cartão</label>
@@ -259,8 +259,17 @@
 
     // Função para atualizar categoria
     function updateCategory(transactionId, newCategory) {
+        // Atualizar a categoria na interface
+        const row = document.querySelector(`tr[data-transaction-id="${transactionId}"]`);
+        if (row) {
+            const categorySelect = row.querySelector('.category-select');
+            if (categorySelect) {
+                categorySelect.value = newCategory;
+            }
+        }
+        
         console.log(`Categoria atualizada para transação ${transactionId}: ${newCategory}`);
-        showToast('Categoria atualizada!', 'success');
+        showToast('Categoria atualizada na interface!', 'success');
     }
 
     // Atualizar contador de transações

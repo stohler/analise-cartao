@@ -1,0 +1,290 @@
+{
+  "filename": "btg.pdf",
+  "analysis_result": {
+    "banco_detectado": "btg",
+    "total_transacoes": 28,
+    "transacoes": [
+      {
+        "data": "26/06/2025",
+        "descricao": "Damyller (2/2)",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 2,
+        "valor": 239.5,
+        "categoria": "compras",
+        "banco": "btg"
+      },
+      {
+        "data": "25/07/2025",
+        "descricao": "Oh My Bread!",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 98.0,
+        "categoria": "alimentacao",
+        "banco": "btg"
+      },
+      {
+        "data": "26/06/2025",
+        "descricao": "Acf Comercio De Calcad (2/3)",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 3,
+        "valor": 133.3,
+        "categoria": "compras",
+        "banco": "btg"
+      },
+      {
+        "data": "25/07/2025",
+        "descricao": "Cooper",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 52.96,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "27/06/2025",
+        "descricao": "Sonia (2/2)",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 2,
+        "valor": 373.02,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "29/07/2025",
+        "descricao": "Posto Grid",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 100.0,
+        "categoria": "transporte",
+        "banco": "btg"
+      },
+      {
+        "data": "04/07/2025",
+        "descricao": "Raphaella Booz (2/2)",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 2,
+        "valor": 209.96,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "31/07/2025",
+        "descricao": "Studio Daiane Mendes",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 430.0,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "05/07/2025",
+        "descricao": "Gatos E Atos (2/2)",
+        "parcelado": "Sim",
+        "parcela_atual": 2,
+        "parcela_total": 2,
+        "valor": 376.32,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "31/07/2025",
+        "descricao": "California",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 36.12,
+        "categoria": "alimentacao",
+        "banco": "btg"
+      },
+      {
+        "data": "21/07/2025",
+        "descricao": "Posto Grid",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 100.0,
+        "categoria": "transporte",
+        "banco": "btg"
+      },
+      {
+        "data": "04/08/2025",
+        "descricao": "Livraria Grafipel",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 79.4,
+        "categoria": "compras",
+        "banco": "btg"
+      },
+      {
+        "data": "21/07/2025",
+        "descricao": "Jaragua Do Sul Shoppin",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 63.8,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "05/08/2025",
+        "descricao": "California",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 36.0,
+        "categoria": "alimentacao",
+        "banco": "btg"
+      },
+      {
+        "data": "21/07/2025",
+        "descricao": "Bec Balas",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 16.32,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "05/08/2025",
+        "descricao": "Posto Grid",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 129.97,
+        "categoria": "transporte",
+        "banco": "btg"
+      },
+      {
+        "data": "22/07/2025",
+        "descricao": "Brink Parque",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 40.0,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "05/08/2025",
+        "descricao": "Kamila Glowatski",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 38.0,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "22/07/2025",
+        "descricao": "Restaurante",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 120.0,
+        "categoria": "alimentacao",
+        "banco": "btg"
+      },
+      {
+        "data": "06/08/2025",
+        "descricao": "Dudu Fernandes Con",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 140.0,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "22/07/2025",
+        "descricao": "Kamila Glowatski",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 38.0,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "07/08/2025",
+        "descricao": "Posto Grid",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 26.96,
+        "categoria": "transporte",
+        "banco": "btg"
+      },
+      {
+        "data": "22/07/2025",
+        "descricao": "Illumine Hair",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 85.0,
+        "categoria": "servicos",
+        "banco": "btg"
+      },
+      {
+        "data": "08/08/2025",
+        "descricao": "Da Chef",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 276.0,
+        "categoria": "alimentacao",
+        "banco": "btg"
+      },
+      {
+        "data": "23/07/2025",
+        "descricao": "Fazzenda Hoteis",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 129.0,
+        "categoria": "outros",
+        "banco": "btg"
+      },
+      {
+        "data": "11/08/2025",
+        "descricao": "Posto Grid",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 100.0,
+        "categoria": "transporte",
+        "banco": "btg"
+      },
+      {
+        "data": "25/07/2025",
+        "descricao": "California",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 65.95,
+        "categoria": "alimentacao",
+        "banco": "btg"
+      },
+      {
+        "data": "12/08/2025",
+        "descricao": "Mensalidade cartão de crédito",
+        "parcelado": "Não",
+        "parcela_atual": null,
+        "parcela_total": null,
+        "valor": 20.0,
+        "categoria": "servicos",
+        "banco": "btg"
+      }
+    ]
+  },
+  "timestamp": "2025-09-08T16:54:20.268002"
+}

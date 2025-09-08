@@ -504,6 +504,134 @@ class MongoDBHandler:
         except Exception as e:
             return {'success': False, 'message': f'Erro ao remover categoria: {str(e)}'}
 
+    def update_transaction_category(self, transaction_hash: str, new_category: str) -> Dict:
+        """
+        Atualiza a categoria de uma transação específica
+        
+        Args:
+            transaction_hash: Hash da transação a ser atualizada
+            new_category: Nova categoria
+            
+        Returns:
+            Dict: Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            # Buscar transação atual
+            current_transaction = self.collection.find_one({"transaction_hash": transaction_hash})
+            if not current_transaction:
+                return {'success': False, 'message': 'Transação não encontrada'}
+            
+            old_category = current_transaction.get('categoria', 'outros')
+            
+            # Atualizar transação
+            result = self.collection.update_one(
+                {"transaction_hash": transaction_hash},
+                {
+                    "$set": {
+                        "categoria": new_category,
+                        "data_atualizacao": datetime.now()
+                    }
+                }
+            )
+            
+            if result.modified_count > 0:
+                return {
+                    'success': True,
+                    'message': f'Categoria atualizada de "{old_category}" para "{new_category}"',
+                    'old_category': old_category,
+                    'new_category': new_category
+                }
+            else:
+                return {'success': False, 'message': 'Nenhuma alteração realizada'}
+                
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao atualizar categoria: {str(e)}'}
+    
+    def update_transaction(self, transaction_hash: str, updates: Dict) -> Dict:
+        """
+        Atualiza uma transação específica
+        
+        Args:
+            transaction_hash: Hash da transação a ser atualizada
+            updates: Dicionário com os campos a serem atualizados
+            
+        Returns:
+            Dict: Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            # Buscar transação atual
+            current_transaction = self.collection.find_one({"transaction_hash": transaction_hash})
+            if not current_transaction:
+                return {'success': False, 'message': 'Transação não encontrada'}
+            
+            # Atualizar campos permitidos
+            allowed_fields = ['categoria', 'descricao', 'valor', 'origem_cartao']
+            update_data = {}
+            updated_fields = []
+            
+            for field, value in updates.items():
+                if field in allowed_fields:
+                    old_value = current_transaction.get(field)
+                    update_data[field] = value
+                    updated_fields.append(f"{field}: '{old_value}' → '{value}'")
+            
+            if not update_data:
+                return {'success': False, 'message': 'Nenhum campo válido para atualização'}
+            
+            # Adicionar data de atualização
+            update_data['data_atualizacao'] = datetime.now()
+            
+            # Recalcular hash se campos chave foram alterados
+            if any(field in ['data', 'descricao', 'valor', 'banco', 'origem_cartao'] for field in updates.keys()):
+                # Criar nova transação com campos atualizados
+                new_transaction = current_transaction.copy()
+                new_transaction.update(update_data)
+                new_hash = self.generate_transaction_hash(new_transaction)
+                update_data['transaction_hash'] = new_hash
+            
+            # Atualizar no MongoDB
+            result = self.collection.update_one(
+                {"transaction_hash": transaction_hash},
+                {"$set": update_data}
+            )
+            
+            if result.modified_count > 0:
+                return {
+                    'success': True,
+                    'message': f'Transação atualizada: {", ".join(updated_fields)}',
+                    'updated_fields': updated_fields
+                }
+            else:
+                return {'success': False, 'message': 'Nenhuma alteração realizada'}
+                
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao atualizar transação: {str(e)}'}
+    
+    def get_transaction_by_hash(self, transaction_hash: str) -> Optional[Dict]:
+        """
+        Busca uma transação pelo hash
+        
+        Args:
+            transaction_hash: Hash da transação
+            
+        Returns:
+            Dict ou None: Transação encontrada ou None
+        """
+        if not self.collection:
+            return None
+        
+        try:
+            return self.collection.find_one({"transaction_hash": transaction_hash})
+        except Exception as e:
+            print(f"❌ Erro ao buscar transação: {e}")
+            return None
+
     def initialize_default_categories(self) -> Dict:
         """
         Inicializa categorias padrão se não existirem

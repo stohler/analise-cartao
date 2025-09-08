@@ -145,6 +145,7 @@ def analysis_result(session_file):
         
         return render_template('analysis.html', 
                              session_data=session_data,
+                             session_file=session_file,
                              mongo_connected=mongo_connected)
     except Exception as e:
         flash(f'Erro ao carregar resultado: {str(e)}', 'error')
@@ -165,17 +166,47 @@ def save_to_mongodb():
         card_origin = data.get('card_origin', 'Cartão Principal')
         remove_duplicates = data.get('remove_duplicates', True)
         
+        if not session_file:
+            return jsonify({
+                'success': False,
+                'message': 'Arquivo de sessão não especificado'
+            })
+        
+        # Verificar se o arquivo de sessão existe
+        if not os.path.exists(session_file):
+            return jsonify({
+                'success': False,
+                'message': f'Arquivo de sessão não encontrado: {session_file}'
+            })
+        
         # Carregar dados da sessão
         with open(session_file, 'r', encoding='utf-8') as f:
             session_data = json.load(f)
         
+        if 'analysis_result' not in session_data or 'transacoes' not in session_data['analysis_result']:
+            return jsonify({
+                'success': False,
+                'message': 'Dados de sessão inválidos - transações não encontradas'
+            })
+        
         transactions = session_data['analysis_result']['transacoes']
+        
+        if not transactions:
+            return jsonify({
+                'success': False,
+                'message': 'Nenhuma transação encontrada para salvar'
+            })
         
         # Salvar no MongoDB
         result = mongo_handler.save_transactions(transactions, card_origin, remove_duplicates)
         
         return jsonify(result)
         
+    except json.JSONDecodeError as e:
+        return jsonify({
+            'success': False,
+            'message': f'Erro ao ler arquivo de sessão: {str(e)}'
+        })
     except Exception as e:
         return jsonify({
             'success': False,
@@ -191,21 +222,85 @@ def save_to_local():
         card_origin = data.get('card_origin', 'Cartão Principal')
         remove_duplicates = data.get('remove_duplicates', True)
         
+        if not session_file:
+            return jsonify({
+                'success': False,
+                'message': 'Arquivo de sessão não especificado'
+            })
+        
+        # Verificar se o arquivo de sessão existe
+        if not os.path.exists(session_file):
+            return jsonify({
+                'success': False,
+                'message': f'Arquivo de sessão não encontrado: {session_file}'
+            })
+        
         # Carregar dados da sessão
         with open(session_file, 'r', encoding='utf-8') as f:
             session_data = json.load(f)
         
+        if 'analysis_result' not in session_data or 'transacoes' not in session_data['analysis_result']:
+            return jsonify({
+                'success': False,
+                'message': 'Dados de sessão inválidos - transações não encontradas'
+            })
+        
         transactions = session_data['analysis_result']['transacoes']
+        
+        if not transactions:
+            return jsonify({
+                'success': False,
+                'message': 'Nenhuma transação encontrada para salvar'
+            })
         
         # Salvar localmente
         result = data_handler.save_transactions(transactions, card_origin, remove_duplicates)
         
         return jsonify(result)
         
+    except json.JSONDecodeError as e:
+        return jsonify({
+            'success': False,
+            'message': f'Erro ao ler arquivo de sessão: {str(e)}'
+        })
     except Exception as e:
         return jsonify({
             'success': False,
             'message': f'Erro ao salvar localmente: {str(e)}'
+        })
+
+@app.route('/update_transaction_category', methods=['POST'])
+def update_transaction_category():
+    """Atualiza a categoria de uma transação"""
+    try:
+        data = request.get_json()
+        transaction_hash = data.get('transaction_hash')
+        new_category = data.get('new_category')
+        
+        if not transaction_hash or not new_category:
+            return jsonify({
+                'success': False,
+                'message': 'Hash da transação e nova categoria são obrigatórios'
+            })
+        
+        # Atualizar no arquivo local
+        result = data_handler.update_transaction_category(transaction_hash, new_category)
+        
+        # Se MongoDB estiver disponível, atualizar lá também
+        if MONGODB_AVAILABLE and mongo_connected and mongo_handler:
+            try:
+                mongo_result = mongo_handler.update_transaction_category(transaction_hash, new_category)
+                if mongo_result['success']:
+                    result['message'] += f" (MongoDB: {mongo_result['message']})"
+            except Exception as e:
+                result['message'] += f" (Erro no MongoDB: {str(e)})"
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Erro ao atualizar categoria: {str(e)}'
         })
 
 @app.route('/transactions')
