@@ -98,6 +98,20 @@ def upload_file():
         flash('Nenhum arquivo selecionado', 'error')
         return redirect(url_for('index'))
     
+    # Capturar data de pagamento
+    payment_date_str = request.form.get('payment_date')
+    if not payment_date_str:
+        flash('Data de pagamento é obrigatória', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        # Converter string para datetime
+        from datetime import datetime
+        payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d')
+    except ValueError:
+        flash('Data de pagamento inválida', 'error')
+        return redirect(url_for('index'))
+    
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -107,10 +121,31 @@ def upload_file():
             # Analisar PDF
             result = analyzer.analyze_pdf(filepath)
             
+            # Aplicar categorização automática se MongoDB estiver disponível
+            if MONGODB_AVAILABLE and mongo_connected and mongo_handler:
+                auto_categorized_count = 0
+                for transacao in result.get('transacoes', []):
+                    if transacao.get('categoria') == 'outros':  # Só categorizar se ainda não foi categorizada
+                        match_result = mongo_handler.find_matching_category(
+                            descricao=transacao.get('descricao', ''),
+                            banco=transacao.get('banco'),
+                            origem_cartao=transacao.get('origem_cartao')
+                        )
+                        
+                        if match_result['found'] and match_result['confidence'] > 0.7:
+                            transacao['categoria'] = match_result['categoria']
+                            transacao['auto_categorized'] = True
+                            transacao['confidence_score'] = match_result['confidence']
+                            auto_categorized_count += 1
+                
+                if auto_categorized_count > 0:
+                    print(f"✅ {auto_categorized_count} transações categorizadas automaticamente")
+            
             # Armazenar resultado na sessão
             session_data = {
                 'filename': filename,
                 'analysis_result': result,
+                'payment_date': payment_date.isoformat(),
                 'timestamp': datetime.now().isoformat()
             }
             
@@ -143,9 +178,13 @@ def analysis_result(session_file):
         with open(session_file, 'r', encoding='utf-8') as f:
             session_data = json.load(f)
         
+        # Extrair session_id do nome do arquivo (session_<id>.json)
+        session_id = session_file.replace('session_', '').replace('.json', '')
+        
         return render_template('analysis.html', 
                              session_data=session_data,
                              session_file=session_file,
+                             session_id=session_id,
                              mongo_connected=mongo_connected)
     except Exception as e:
         flash(f'Erro ao carregar resultado: {str(e)}', 'error')
@@ -196,6 +235,12 @@ def save_to_mongodb():
                 'success': False,
                 'message': 'Nenhuma transação encontrada para salvar'
             })
+        
+        # Adicionar data de pagamento às transações
+        payment_date = session_data.get('payment_date')
+        if payment_date:
+            for transaction in transactions:
+                transaction['data_pagamento'] = payment_date
         
         # Salvar no MongoDB
         result = mongo_handler.save_transactions(transactions, card_origin, remove_duplicates)
@@ -253,6 +298,12 @@ def save_to_local():
                 'message': 'Nenhuma transação encontrada para salvar'
             })
         
+        # Adicionar data de pagamento às transações
+        payment_date = session_data.get('payment_date')
+        if payment_date:
+            for transaction in transactions:
+                transaction['data_pagamento'] = payment_date
+        
         # Salvar localmente
         result = data_handler.save_transactions(transactions, card_origin, remove_duplicates)
         
@@ -283,6 +334,21 @@ def update_transaction_category():
                 'message': 'Hash da transação e nova categoria são obrigatórios'
             })
         
+        # Obter dados da transação para salvar o padrão
+        transaction_data = None
+        if MONGODB_AVAILABLE and mongo_connected and mongo_handler:
+            # Buscar transação no MongoDB
+            transaction = mongo_handler.collection.find_one({'transaction_hash': transaction_hash})
+            if transaction:
+                transaction_data = transaction
+            else:
+                # Buscar no arquivo local
+                local_transactions = data_handler.get_transactions()
+                for trans in local_transactions:
+                    if trans.get('transaction_hash') == transaction_hash:
+                        transaction_data = trans
+                        break
+        
         # Atualizar no arquivo local
         result = data_handler.update_transaction_category(transaction_hash, new_category)
         
@@ -292,6 +358,19 @@ def update_transaction_category():
                 mongo_result = mongo_handler.update_transaction_category(transaction_hash, new_category)
                 if mongo_result['success']:
                     result['message'] += f" (MongoDB: {mongo_result['message']})"
+                    
+                    # Salvar padrão de categorização para aprendizado automático
+                    if transaction_data and result['success']:
+                        pattern_result = mongo_handler.save_categorization_pattern(
+                            descricao=transaction_data.get('descricao', ''),
+                            categoria=new_category,
+                            banco=transaction_data.get('banco'),
+                            origem_cartao=transaction_data.get('origem_cartao')
+                        )
+                        if pattern_result['success']:
+                            print(f"✅ Padrão de categorização salvo: {transaction_data.get('descricao', '')} -> {new_category}")
+                        else:
+                            print(f"⚠️ Erro ao salvar padrão: {pattern_result['message']}")
             except Exception as e:
                 result['message'] += f" (Erro no MongoDB: {str(e)})"
         
@@ -471,6 +550,109 @@ def api_delete_category(category_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/auto_categorize', methods=['POST'])
+def api_auto_categorize():
+    """API para aplicar categorização automática baseada em padrões"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_handler:
+            return jsonify({'error': 'MongoDB não disponível'}), 400
+        
+        data = request.get_json()
+        descricao = data.get('descricao', '')
+        banco = data.get('banco')
+        origem_cartao = data.get('origem_cartao')
+        
+        if not descricao:
+            return jsonify({'error': 'Descrição é obrigatória'}), 400
+        
+        # Buscar categoria correspondente
+        match_result = mongo_handler.find_matching_category(descricao, banco, origem_cartao)
+        
+        return jsonify({
+            'success': True,
+            'found': match_result['found'],
+            'categoria': match_result.get('categoria'),
+            'confidence': match_result.get('confidence', 0.0),
+            'match_type': match_result.get('match_type', 'none')
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Erro ao categorizar automaticamente: {str(e)}'}), 500
+
+@app.route('/api/categorization_stats')
+def api_categorization_stats():
+    """API para obter estatísticas de categorização automática"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_handler:
+            return jsonify({'error': 'MongoDB não disponível'}), 400
+        
+        stats = mongo_handler.get_categorization_stats()
+        return jsonify(stats)
+        
+    except Exception as e:
+        return jsonify({'error': f'Erro ao obter estatísticas: {str(e)}'}), 500
+
+@app.route('/categorization_stats')
+def categorization_stats():
+    """Página de estatísticas de categorização automática"""
+    try:
+        if not MONGODB_AVAILABLE or not mongo_connected or not mongo_handler:
+            flash('Funcionalidade não disponível - MongoDB necessário', 'error')
+            return redirect(url_for('index'))
+        
+        stats = mongo_handler.get_categorization_stats()
+        
+        return render_template('categorization_stats.html', 
+                             stats=stats,
+                             mongo_connected=mongo_connected)
+    except Exception as e:
+        flash(f'Erro ao carregar estatísticas: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/api/session/remove_transaction', methods=['POST'])
+def api_remove_session_transaction():
+    """API para remover uma transação da sessão"""
+    try:
+        data = request.get_json()
+        transaction_index = data.get('transaction_index')
+        session_id = data.get('session_id')
+        
+        if transaction_index is None or not session_id:
+            return jsonify({'success': False, 'message': 'Índice da transação e ID da sessão são obrigatórios'}), 400
+        
+        # Carregar dados da sessão
+        session_file = f'session_{session_id}.json'
+        if not os.path.exists(session_file):
+            return jsonify({'success': False, 'message': 'Sessão não encontrada'}), 404
+        
+        with open(session_file, 'r', encoding='utf-8') as f:
+            session_data = json.load(f)
+        
+        if 'analysis_result' not in session_data or 'transacoes' not in session_data['analysis_result']:
+            return jsonify({'success': False, 'message': 'Dados de sessão inválidos'}), 400
+        
+        transactions = session_data['analysis_result']['transacoes']
+        
+        if transaction_index >= len(transactions):
+            return jsonify({'success': False, 'message': 'Índice da transação inválido'}), 400
+        
+        # Remover transação
+        removed_transaction = transactions.pop(transaction_index)
+        
+        # Salvar sessão atualizada
+        with open(session_file, 'w', encoding='utf-8') as f:
+            json.dump(session_data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Transação removida: {removed_transaction.get("descricao", "N/A")}',
+            'removed_transaction': removed_transaction,
+            'remaining_count': len(transactions)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro ao remover transação da sessão: {str(e)}'}), 500
+
 @app.route('/api/transactions/remove', methods=['POST'])
 def api_remove_transaction():
     """API para remover uma transação específica"""
@@ -483,6 +665,8 @@ def api_remove_transaction():
             return jsonify({'success': False, 'message': 'Hash da transação é obrigatório'}), 400
         
         if storage_type == 'local':
+            # Recarregar dados antes de tentar remover
+            data_handler.load_data()
             result = data_handler.remove_transaction(transaction_hash)
         elif storage_type == 'mongodb':
             if not MONGODB_AVAILABLE or not mongo_handler:

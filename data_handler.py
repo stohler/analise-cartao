@@ -127,13 +127,13 @@ class DataHandler:
             
             for transaction in transactions_with_origin:
                 try:
+                    # Adicionar hash da transação ANTES da verificação de duplicata
+                    transaction['transaction_hash'] = self.generate_transaction_hash(transaction)
+                    
                     # Verificar duplicados se solicitado
                     if remove_duplicates and self.is_duplicate(transaction):
                         duplicate_count += 1
                         continue
-                    
-                    # Adicionar hash da transação
-                    transaction['transaction_hash'] = self.generate_transaction_hash(transaction)
                     
                     # Adicionar à lista
                     self.transactions.append(transaction)

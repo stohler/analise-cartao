@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Estatísticas de Categorização - Analisador de PDFs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-robot me-2"></i>Estatísticas de Categorização Automática
+                </h5>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar
+                </a>
+            </div>
+            <div class="card-body">
+                {% if stats.success %}
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <i class="fas fa-database fa-2x mb-2"></i>
+                                <h4>{{ stats.total_patterns }}</h4>
+                                <p class="mb-0">Padrões Salvos</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                <h4>{{ stats.total_usage }}</h4>
+                                <p class="mb-0">Usos Totais</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <i class="fas fa-tags fa-2x mb-2"></i>
+                                <h4>{{ stats.top_categories|length }}</h4>
+                                <p class="mb-0">Categorias Ativas</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="mb-3">Top Categorias por Uso</h6>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Categoria</th>
+                                <th>Padrões</th>
+                                <th>Usos</th>
+                                <th>Média por Padrão</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in stats.top_categories %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-secondary">{{ cat._id|title }}</span>
+                                </td>
+                                <td>{{ cat.count }}</td>
+                                <td>{{ cat.usage }}</td>
+                                <td>{{ "%.1f"|format(cat.usage / cat.count) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Como funciona:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Cada vez que você categoriza uma transação manualmente, o sistema salva esse padrão</li>
+                        <li>Quando uma nova transação é analisada, o sistema busca por padrões similares</li>
+                        <li>Se encontrar um match com alta confiança (>70%), categoriza automaticamente</li>
+                        <li>Você pode sempre ajustar a categoria sugerida pelo sistema</li>
+                    </ul>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Nenhum padrão encontrado</strong>
+                    <p class="mb-0">Comece categorizando transações manualmente para que o sistema aprenda seus padrões.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

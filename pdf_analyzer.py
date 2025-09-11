@@ -18,7 +18,7 @@ class PDFAnalyzer:
                     r'^EMISSÃO\s+E\s+ENVIO',  # Cabeçalho "EMISSÃO E ENVIO"
                     r'^TRANSAÇÕES\s+DE\s+\d{2}\s+\w{3}\s+A\s+\d{2}\s+\w{3}',  # "TRANSAÇÕES DE 29 JUN A 30 JUL"
                     r'^[A-Z\s]+\s+\d{2}\s+\w{3}\s+\d{4}',  # Nome + data no cabeçalho
-                    r'^[A-Z\s]+$',  # Apenas letras maiúsculas e espaços (cabeçalhos)
+                    r'^[A-Z\s]{1,3}$',  # Apenas letras maiúsculas e espaços muito curtos (cabeçalhos)
                     r'^\s*$'  # Linhas vazias
                 ],
                 'categories': {
@@ -118,7 +118,7 @@ class PDFAnalyzer:
                     r'compras\s+internacionais',  # "compras internacionais"
                     r'^\d{5}\.\d{5}\s+\d{5}\.\d{5}\s+\d{5}\.\d{5}\s+\d+',  # Números de conta longos
                     r'^\d+\s*$',  # Apenas números
-                    r'^[A-Z\s]+$',  # Apenas letras maiúsculas e espaços
+                    r'^[A-Z\s]{1,3}$',  # Apenas letras maiúsculas e espaços muito curtos (cabeçalhos)
                     r'^\s*$'  # Linhas vazias ou apenas espaços
                 ],
                 'categories': {

@@ -69,7 +69,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="removeTransaction({{ loop.index0 }})" title="Remover transação">
+                                    <button class="btn btn-sm btn-outline-danger btn-remove" data-transaction-id="{{ loop.index0 }}" title="Remover transação">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
@@ -248,14 +248,68 @@
     // Função para remover transação
     function removeTransaction(transactionId) {
         if (confirm('Tem certeza que deseja remover esta transação?')) {
-            const row = document.querySelector(`tr[data-transaction-id="${transactionId}"]`);
-            if (row) {
-                row.remove();
-                showToast('Transação removida com sucesso!', 'success');
-                updateTransactionCount();
-            }
+            // Chamar API para remover da sessão
+            fetch('/api/session/remove_transaction', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    transaction_index: parseInt(transactionId),
+                    session_id: '{{ session_id }}'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remover linha da tabela
+                    const row = document.querySelector(`tr[data-transaction-id="${transactionId}"]`);
+                    if (row) {
+                        row.remove();
+                    }
+                    
+                    // Atualizar índices das linhas restantes
+                    updateRowIndices();
+                    
+                    showToast(data.message, 'success');
+                    updateTransactionCount();
+                } else {
+                    showToast('Erro: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                showToast('Erro ao remover transação', 'error');
+            });
         }
     }
+    
+    // Função para atualizar índices das linhas após remoção
+    function updateRowIndices() {
+        const rows = document.querySelectorAll('tbody tr[data-transaction-id]');
+        rows.forEach((row, index) => {
+            row.setAttribute('data-transaction-id', index);
+            const categorySelect = row.querySelector('.category-select');
+            if (categorySelect) {
+                categorySelect.setAttribute('data-transaction-id', index);
+            }
+            const removeButton = row.querySelector('.btn-remove');
+            if (removeButton) {
+                removeButton.setAttribute('data-transaction-id', index);
+            }
+        });
+    }
+    
+    // Adicionar event listeners para botões de remoção
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-remove')) {
+                const button = e.target.closest('.btn-remove');
+                const transactionId = button.getAttribute('data-transaction-id');
+                removeTransaction(transactionId);
+            }
+        });
+    });
 
     // Função para atualizar categoria
     function updateCategory(transactionId, newCategory) {

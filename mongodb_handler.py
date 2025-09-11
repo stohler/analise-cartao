@@ -178,13 +178,13 @@ class MongoDBHandler:
             
             for transaction in transactions_with_origin:
                 try:
+                    # Adicionar hash da transação ANTES da verificação de duplicata
+                    transaction['transaction_hash'] = self.generate_transaction_hash(transaction)
+                    
                     # Verificar duplicados se solicitado
                     if remove_duplicates and self.is_duplicate(transaction):
                         duplicate_count += 1
                         continue
-                    
-                    # Adicionar hash da transação
-                    transaction['transaction_hash'] = self.generate_transaction_hash(transaction)
                     
                     # Inserir no MongoDB
                     result = self.collection.insert_one(transaction)
@@ -917,6 +917,254 @@ class MongoDBHandler:
             }
         except Exception as e:
             return {'success': False, 'message': f'Erro ao inicializar categorias: {str(e)}'}
+
+    def save_categorization_pattern(self, descricao: str, categoria: str, banco: str = None, origem_cartao: str = None) -> Dict:
+        """
+        Salva um padrão de categorização para aprendizado automático
+        
+        Args:
+            descricao: Descrição da transação
+            categoria: Categoria atribuída
+            banco: Banco da transação (opcional)
+            origem_cartao: Origem do cartão (opcional)
+            
+        Returns:
+            Resultado da operação
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            patterns_collection = self.db['categorization_patterns']
+            
+            # Normalizar descrição para busca
+            normalized_desc = self._normalize_description(descricao)
+            
+            # Verificar se já existe um padrão similar
+            existing_pattern = patterns_collection.find_one({
+                'normalized_desc': normalized_desc,
+                'categoria': categoria
+            })
+            
+            if existing_pattern:
+                # Incrementar contador de uso
+                patterns_collection.update_one(
+                    {'_id': existing_pattern['_id']},
+                    {
+                        '$inc': {'usage_count': 1},
+                        '$set': {'last_used': datetime.now()}
+                    }
+                )
+                return {'success': True, 'message': 'Padrão atualizado com sucesso'}
+            else:
+                # Criar novo padrão
+                pattern_data = {
+                    'original_desc': descricao,
+                    'normalized_desc': normalized_desc,
+                    'categoria': categoria,
+                    'banco': banco,
+                    'origem_cartao': origem_cartao,
+                    'usage_count': 1,
+                    'created_at': datetime.now(),
+                    'last_used': datetime.now(),
+                    'confidence_score': 1.0
+                }
+                
+                result = patterns_collection.insert_one(pattern_data)
+                return {
+                    'success': True,
+                    'message': 'Padrão de categorização salvo com sucesso',
+                    'pattern_id': str(result.inserted_id)
+                }
+                
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao salvar padrão: {str(e)}'}
+
+    def find_matching_category(self, descricao: str, banco: str = None, origem_cartao: str = None) -> Dict:
+        """
+        Busca categoria correspondente baseada em padrões salvos
+        
+        Args:
+            descricao: Descrição da transação
+            banco: Banco da transação (opcional)
+            origem_cartao: Origem do cartão (opcional)
+            
+        Returns:
+            Dict com categoria encontrada e score de confiança
+        """
+        if not self.collection:
+            return {'found': False, 'categoria': None, 'confidence': 0.0}
+        
+        try:
+            patterns_collection = self.db['categorization_patterns']
+            normalized_desc = self._normalize_description(descricao)
+            
+            # Buscar padrões exatos primeiro
+            exact_match = patterns_collection.find_one({
+                'normalized_desc': normalized_desc
+            })
+            
+            if exact_match:
+                return {
+                    'found': True,
+                    'categoria': exact_match['categoria'],
+                    'confidence': 0.95,
+                    'pattern_id': str(exact_match['_id']),
+                    'match_type': 'exact'
+                }
+            
+            # Buscar padrões parciais (palavras-chave)
+            keywords = self._extract_keywords(normalized_desc)
+            best_match = None
+            best_score = 0.0
+            
+            for keyword in keywords:
+                if len(keyword) < 3:  # Ignorar palavras muito curtas
+                    continue
+                    
+                partial_matches = patterns_collection.find({
+                    'normalized_desc': {'$regex': keyword, '$options': 'i'}
+                }).sort('usage_count', -1).limit(5)
+                
+                for match in partial_matches:
+                    # Calcular score baseado na similaridade e uso
+                    similarity = self._calculate_similarity(normalized_desc, match['normalized_desc'])
+                    usage_bonus = min(match['usage_count'] * 0.1, 0.3)  # Bonus por uso frequente
+                    score = similarity + usage_bonus
+                    
+                    if score > best_score and score > 0.6:  # Threshold mínimo
+                        best_match = match
+                        best_score = score
+            
+            if best_match:
+                return {
+                    'found': True,
+                    'categoria': best_match['categoria'],
+                    'confidence': min(best_score, 0.9),
+                    'pattern_id': str(best_match['_id']),
+                    'match_type': 'partial'
+                }
+            
+            return {'found': False, 'categoria': None, 'confidence': 0.0}
+            
+        except Exception as e:
+            print(f"Erro ao buscar categoria: {e}")
+            return {'found': False, 'categoria': None, 'confidence': 0.0}
+
+    def _normalize_description(self, descricao: str) -> str:
+        """
+        Normaliza descrição para comparação
+        
+        Args:
+            descricao: Descrição original
+            
+        Returns:
+            Descrição normalizada
+        """
+        if not descricao:
+            return ""
+        
+        # Converter para minúsculas
+        normalized = descricao.lower()
+        
+        # Remover caracteres especiais e números de parcelas
+        import re
+        normalized = re.sub(r'\s*\d+/\d+\s*', ' ', normalized)  # Remover "1/12", "2/3", etc.
+        normalized = re.sub(r'\s*parcela\s*\d+\s*', ' ', normalized)  # Remover "parcela 1", etc.
+        normalized = re.sub(r'[^\w\s]', ' ', normalized)  # Remover caracteres especiais
+        normalized = re.sub(r'\s+', ' ', normalized)  # Normalizar espaços
+        normalized = normalized.strip()
+        
+        return normalized
+
+    def _extract_keywords(self, descricao: str) -> List[str]:
+        """
+        Extrai palavras-chave da descrição
+        
+        Args:
+            descricao: Descrição normalizada
+            
+        Returns:
+            Lista de palavras-chave
+        """
+        # Palavras comuns a serem ignoradas
+        stop_words = {
+            'de', 'da', 'do', 'das', 'dos', 'em', 'na', 'no', 'nas', 'nos',
+            'para', 'com', 'por', 'sobre', 'entre', 'até', 'desde', 'durante',
+            'a', 'o', 'as', 'os', 'um', 'uma', 'uns', 'umas', 'e', 'ou',
+            'mas', 'porém', 'contudo', 'entretanto', 'logo', 'portanto',
+            'se', 'quando', 'onde', 'como', 'que', 'quem', 'qual', 'quais'
+        }
+        
+        words = descricao.split()
+        keywords = [word for word in words if len(word) > 2 and word not in stop_words]
+        
+        return keywords
+
+    def _calculate_similarity(self, desc1: str, desc2: str) -> float:
+        """
+        Calcula similaridade entre duas descrições
+        
+        Args:
+            desc1: Primeira descrição
+            desc2: Segunda descrição
+            
+        Returns:
+            Score de similaridade (0.0 a 1.0)
+        """
+        if not desc1 or not desc2:
+            return 0.0
+        
+        words1 = set(desc1.split())
+        words2 = set(desc2.split())
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union) if union else 0.0
+
+    def get_categorization_stats(self) -> Dict:
+        """
+        Obtém estatísticas dos padrões de categorização
+        
+        Returns:
+            Estatísticas dos padrões
+        """
+        if not self.collection:
+            return {'success': False, 'message': 'MongoDB não conectado'}
+        
+        try:
+            patterns_collection = self.db['categorization_patterns']
+            
+            total_patterns = patterns_collection.count_documents({})
+            total_usage = patterns_collection.aggregate([
+                {'$group': {'_id': None, 'total': {'$sum': '$usage_count'}}}
+            ])
+            
+            total_usage_count = 0
+            for result in total_usage:
+                total_usage_count = result['total']
+                break
+            
+            # Top categorias
+            top_categories = list(patterns_collection.aggregate([
+                {'$group': {'_id': '$categoria', 'count': {'$sum': 1}, 'usage': {'$sum': '$usage_count'}}},
+                {'$sort': {'usage': -1}},
+                {'$limit': 10}
+            ]))
+            
+            return {
+                'success': True,
+                'total_patterns': total_patterns,
+                'total_usage': total_usage_count,
+                'top_categories': top_categories
+            }
+            
+        except Exception as e:
+            return {'success': False, 'message': f'Erro ao obter estatísticas: {str(e)}'}
 
 # Exemplo de uso
 if __name__ == "__main__":

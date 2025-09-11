@@ -31,6 +31,19 @@
                             </button>
                         </div>
                     </div>
+                    
+                    <!-- Campo de data de pagamento -->
+                    <div class="mt-3" id="paymentDateSection" style="display: none;">
+                        <label for="paymentDate" class="form-label">
+                            <i class="fas fa-calendar me-2"></i>Data de Pagamento
+                        </label>
+                        <input type="date" class="form-control" id="paymentDate" name="payment_date" required>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Data em que o pagamento foi efetuado (usado para filtros e relatórios)
+                        </div>
+                    </div>
+                    
                     <div class="d-grid mt-3">
                         <button type="submit" class="btn btn-primary" id="analyzeBtn" disabled>
                             <i class="fas fa-search me-2"></i>Analisar PDF
@@ -193,6 +206,14 @@
             
             fileName.textContent = file.name;
             fileInfo.style.display = 'block';
+            
+            // Mostrar campo de data de pagamento
+            document.getElementById('paymentDateSection').style.display = 'block';
+            
+            // Definir data padrão como hoje
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('paymentDate').value = today;
+            
             analyzeBtn.disabled = false;
             console.log('PDF file accepted, button enabled. Button disabled:', analyzeBtn.disabled);
         } else {
@@ -204,6 +225,7 @@
     function clearFile() {
         fileInput.value = '';
         fileInfo.style.display = 'none';
+        document.getElementById('paymentDateSection').style.display = 'none';
         analyzeBtn.disabled = true;
     }
 
