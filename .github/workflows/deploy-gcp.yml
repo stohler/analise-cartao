@@ -106,7 +106,7 @@ jobs:
       run: |
         echo "🛑 Parando aplicação atual..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao || { echo '📁 Diretório não existe, criando...'; mkdir -p /home/gcp-user/analise-cartao; cd /home/gcp-user/analise-cartao; }
+          cd /home/github-actions/analise-cartao || { echo '📁 Diretório não existe, criando...'; mkdir -p /home/github-actions/analise-cartao; cd /home/github-actions/analise-cartao; }
           if [ -f docker-compose.yml ]; then
             echo '⏹️ Parando containers...'
             docker compose down || echo '⚠️ Nenhum container rodando'
@@ -119,7 +119,7 @@ jobs:
       run: |
         echo "💾 Criando backup..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao
+          cd /home/github-actions/analise-cartao
           BACKUP_DIR='backups/deploy_$(date +%Y%m%d_%H%M%S)'
           mkdir -p \$BACKUP_DIR
           
@@ -190,7 +190,7 @@ jobs:
         # Extrair no servidor
         echo "📂 Extraindo arquivos na VM..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao
+          cd /home/github-actions/analise-cartao
           
           # Fazer backup dos arquivos importantes antes de extrair
           mkdir -p temp_backup
@@ -225,7 +225,7 @@ jobs:
       run: |
         echo "⚙️ Configurando ambiente..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao
+          cd /home/github-actions/analise-cartao
           
           # Criar diretórios necessários
           mkdir -p uploads logs ssl backups
@@ -260,7 +260,7 @@ jobs:
       run: |
         echo "🐳 Otimizando configuração Docker..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao
+          cd /home/github-actions/analise-cartao
           
           # Criar docker-compose otimizado para e2-micro
           cat > docker-compose.yml << 'EOF'
@@ -370,7 +370,7 @@ jobs:
       run: |
         echo "🔒 Configurando SSL..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao
+          cd /home/github-actions/analise-cartao
           
           # Script para configurar SSL automaticamente
           cat > setup_ssl.sh << 'EOF'
@@ -391,7 +391,7 @@ jobs:
                 -keyout ssl/key.pem \
                 -out ssl/cert.pem \
                 -subj '/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=localhost'
-            sudo chown -R gcp-user:gcp-user ssl/
+            sudo chown -R github-actions:github-actions ssl/
         fi
         
         echo '✅ SSL configurado (certificado auto-assinado)'
@@ -406,7 +406,7 @@ jobs:
       run: |
         echo "🚀 Iniciando aplicação..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao
+          cd /home/github-actions/analise-cartao
           
           # Limpar imagens antigas para economizar espaço
           docker system prune -f
@@ -445,7 +445,7 @@ jobs:
           
           # Debug: verificar logs
           ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-            cd /home/gcp-user/analise-cartao
+            cd /home/github-actions/analise-cartao
             echo '🔍 Logs da aplicação:'
             docker compose logs --tail=20 web
             echo '🔍 Logs do Nginx:'
@@ -458,7 +458,7 @@ jobs:
       run: |
         echo "📊 Status final do deploy:"
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao
+          cd /home/github-actions/analise-cartao
           echo '🐳 Containers:'
           docker compose ps
           echo ''
