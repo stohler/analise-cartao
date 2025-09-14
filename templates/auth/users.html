@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Usuários - Analisador de PDFs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Usuários do Sistema
+                </h5>
+                <span class="badge bg-primary">{{ users|length }} usuário(s)</span>
+            </div>
+            <div class="card-body">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Usuário</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Cadastro</th>
+                                <th>Último Login</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    <code class="small">{{ user.id }}</code>
+                                </td>
+                                <td>
+                                    <strong>{{ user.username }}</strong>
+                                    {% if user.username == 'admin' %}
+                                        <span class="badge bg-danger ms-1">Admin</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success">Ativo</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inativo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>
+                                        {{ user.created_at.strftime('%d/%m/%Y') if user.created_at else 'N/A' }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <small>
+                                        {% if user.last_login %}
+                                            {{ user.last_login.strftime('%d/%m/%Y %H:%M') }}
+                                        {% else %}
+                                            <span class="text-muted">Nunca</span>
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        {% if user.username != 'admin' %}
+                                        <button type="button" class="btn btn-outline-warning" 
+                                                onclick="resetPassword('{{ user.id }}', '{{ user.username }}')"
+                                                title="Resetar Senha">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+                                        {% if user.is_active %}
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="deactivateUser('{{ user.id }}', '{{ user.username }}')"
+                                                title="Desativar Usuário">
+                                            <i class="fas fa-user-slash"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nenhum usuário encontrado</h5>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Estatísticas
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-success">{{ users|selectattr('is_active')|list|length }}</h4>
+                        <small class="text-muted">Usuários Ativos</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-secondary">{{ users|rejectattr('is_active')|list|length }}</h4>
+                        <small class="text-muted">Usuários Inativos</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Ações Administrativas
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-user me-2"></i>Meu Perfil
+                    </a>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-home me-2"></i>Página Inicial
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalTitle">Confirmar Ação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmModalBody">
+                <!-- Conteúdo será inserido via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmActionBtn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let confirmModal;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    });
+    
+    function resetPassword(userId, username) {
+        document.getElementById('confirmModalTitle').textContent = 'Resetar Senha';
+        document.getElementById('confirmModalBody').innerHTML = `
+            <p>Tem certeza que deseja resetar a senha do usuário <strong>${username}</strong>?</p>
+            <p class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>Uma nova senha temporária será gerada.</p>
+        `;
+        
+        const confirmBtn = document.getElementById('confirmActionBtn');
+        confirmBtn.textContent = 'Resetar Senha';
+        confirmBtn.className = 'btn btn-warning';
+        
+        confirmBtn.onclick = function() {
+            // Aqui você implementaria a chamada para resetar a senha
+            showToast('Funcionalidade de reset de senha será implementada', 'info');
+            confirmModal.hide();
+        };
+        
+        confirmModal.show();
+    }
+    
+    function deactivateUser(userId, username) {
+        document.getElementById('confirmModalTitle').textContent = 'Desativar Usuário';
+        document.getElementById('confirmModalBody').innerHTML = `
+            <p>Tem certeza que deseja desativar o usuário <strong>${username}</strong>?</p>
+            <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>O usuário não conseguirá mais fazer login.</p>
+        `;
+        
+        const confirmBtn = document.getElementById('confirmActionBtn');
+        confirmBtn.textContent = 'Desativar';
+        confirmBtn.className = 'btn btn-danger';
+        
+        confirmBtn.onclick = function() {
+            // Aqui você implementaria a chamada para desativar o usuário
+            showToast('Funcionalidade de desativação será implementada', 'info');
+            confirmModal.hide();
+        };
+        
+        confirmModal.show();
+    }
+</script>
+{% endblock %}
