@@ -57,7 +57,15 @@
         # Extrair no servidor
         echo "📂 Extraindo arquivos na VM..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/gcp-user/analise-cartao
+          # Usar variável de ambiente para o usuário correto
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          
+          # Criar diretório se não existir
+          mkdir -p \$PROJECT_DIR
+          cd \$PROJECT_DIR
+          
+          echo '📁 Trabalhando no diretório:' \$(pwd)
           
           # Fazer backup dos arquivos importantes antes de extrair
           mkdir -p temp_backup

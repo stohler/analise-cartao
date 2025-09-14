@@ -86,10 +86,28 @@ jobs:
     
     - name: 🔑 Configurar SSH
       run: |
+        # Criar diretório SSH se não existir
         mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        
+        # Configurar chave SSH (sobrescrever se existir)
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/gcp_deploy
         chmod 600 ~/.ssh/gcp_deploy
-        ssh-keyscan -H ${{ secrets.GCP_VM_IP }} >> ~/.ssh/known_hosts
+        
+        # Adicionar host conhecido (evitar duplicatas)
+        ssh-keyscan -H ${{ secrets.GCP_VM_IP }} > ~/.ssh/known_hosts_temp
+        if [ -f ~/.ssh/known_hosts ]; then
+          # Remover entrada existente e adicionar nova
+          grep -v "${{ secrets.GCP_VM_IP }}" ~/.ssh/known_hosts > ~/.ssh/known_hosts_temp2 || true
+          cat ~/.ssh/known_hosts_temp2 ~/.ssh/known_hosts_temp > ~/.ssh/known_hosts
+          rm -f ~/.ssh/known_hosts_temp2
+        else
+          mv ~/.ssh/known_hosts_temp ~/.ssh/known_hosts
+        fi
+        rm -f ~/.ssh/known_hosts_temp
+        chmod 644 ~/.ssh/known_hosts
+        
+        echo "✅ SSH configurado com segurança"
     
     - name: 🏥 Verificar saúde da VM
       run: |
@@ -106,7 +124,9 @@ jobs:
       run: |
         echo "🛑 Parando aplicação atual..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/github-actions/analise-cartao || { echo '📁 Diretório não existe, criando...'; mkdir -p /home/github-actions/analise-cartao; cd /home/github-actions/analise-cartao; }
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          cd \$PROJECT_DIR || { echo '📁 Diretório não existe, criando...'; mkdir -p \$PROJECT_DIR; cd \$PROJECT_DIR; }
           if [ -f docker-compose.yml ]; then
             echo '⏹️ Parando containers...'
             docker compose down || echo '⚠️ Nenhum container rodando'
@@ -119,7 +139,9 @@ jobs:
       run: |
         echo "💾 Criando backup..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/github-actions/analise-cartao
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          cd \$PROJECT_DIR
           BACKUP_DIR='backups/deploy_$(date +%Y%m%d_%H%M%S)'
           mkdir -p \$BACKUP_DIR
           
@@ -190,7 +212,15 @@ jobs:
         # Extrair no servidor
         echo "📂 Extraindo arquivos na VM..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/github-actions/analise-cartao
+          # Usar variável de ambiente para o usuário correto
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          
+          # Criar diretório se não existir
+          mkdir -p \$PROJECT_DIR
+          cd \$PROJECT_DIR
+          
+          echo '📁 Trabalhando no diretório:' \$(pwd)
           
           # Fazer backup dos arquivos importantes antes de extrair
           mkdir -p temp_backup
@@ -225,7 +255,9 @@ jobs:
       run: |
         echo "⚙️ Configurando ambiente..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/github-actions/analise-cartao
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          cd \$PROJECT_DIR
           
           # Criar diretórios necessários
           mkdir -p uploads logs ssl backups
@@ -260,7 +292,9 @@ jobs:
       run: |
         echo "🐳 Otimizando configuração Docker..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/github-actions/analise-cartao
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          cd \$PROJECT_DIR
           
           # Criar docker-compose otimizado para e2-micro
           cat > docker-compose.yml << 'EOF'
@@ -370,7 +404,9 @@ jobs:
       run: |
         echo "🔒 Configurando SSL..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/github-actions/analise-cartao
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          cd \$PROJECT_DIR
           
           # Script para configurar SSL automaticamente
           cat > setup_ssl.sh << 'EOF'
@@ -391,7 +427,7 @@ jobs:
                 -keyout ssl/key.pem \
                 -out ssl/cert.pem \
                 -subj '/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=localhost'
-            sudo chown -R github-actions:github-actions ssl/
+            sudo chown -R \$USER:\$USER ssl/
         fi
         
         echo '✅ SSL configurado (certificado auto-assinado)'
@@ -406,7 +442,9 @@ jobs:
       run: |
         echo "🚀 Iniciando aplicação..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/github-actions/analise-cartao
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          cd \$PROJECT_DIR
           
           # Limpar imagens antigas para economizar espaço
           docker system prune -f
@@ -458,7 +496,9 @@ jobs:
       run: |
         echo "📊 Status final do deploy:"
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          cd /home/github-actions/analise-cartao
+          USER_HOME=/home/\$USER
+          PROJECT_DIR=\$USER_HOME/analise-cartao
+          cd \$PROJECT_DIR
           echo '🐳 Containers:'
           docker compose ps
           echo ''
