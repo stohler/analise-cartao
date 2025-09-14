@@ -191,7 +191,27 @@ python -c "import secrets; print(secrets.token_hex(32))"
 - ✅ Rate limiting configurado
 - ✅ Logs de auditoria
 
-## 🚀 Deploy AWS Free Tier
+## 🚀 Deploy GCP Free Tier (Recomendado)
+
+### Recursos Utilizados
+- **VM e2-micro**: Servidor principal (always free)
+- **MongoDB Atlas M0**: Banco de dados (gratuito permanente)
+- **GitHub Actions**: Deploy automático (gratuito)
+- **Let's Encrypt**: SSL gratuito
+
+### Passo a Passo
+1. **Siga o guia completo**: [DEPLOY_GCP.md](DEPLOY_GCP.md)
+2. **Configure a VM**: [SETUP_GCP.md](SETUP_GCP.md)
+3. **Configure GitHub Secrets**
+4. **Push para branch `main`** = Deploy automático!
+
+### Custos Estimados
+- **Always Free**: $0 permanente (e2-micro)
+- **MongoDB Atlas**: $0 permanente (M0)
+- **GitHub Actions**: $0 (2000 min/mês grátis)
+- **Total**: **$0/mês** 🎉
+
+## 🚀 Deploy AWS Free Tier (Alternativo)
 
 ### Recursos Utilizados
 - **EC2 t2.micro**: Servidor principal (gratuito 12 meses)

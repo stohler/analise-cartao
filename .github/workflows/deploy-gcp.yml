@@ -1,0 +1,435 @@
+name: 🚀 Deploy to GCP e2-micro
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  VM_NAME: ${{ secrets.GCP_VM_NAME }}
+  VM_ZONE: ${{ secrets.GCP_VM_ZONE }}
+  VM_USER: ${{ secrets.GCP_VM_USER }}
+  VM_IP: ${{ secrets.GCP_VM_IP }}
+
+jobs:
+  # Job 1: Testes (roda sempre)
+  test:
+    name: 🧪 Testes e Validação
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 📦 Instalar dependências
+      run: |
+        pip install -r requirements.txt
+    
+    - name: 🔍 Validar sintaxe Python
+      run: |
+        python -m py_compile app_secure.py
+        python -m py_compile models.py
+        python -m py_compile auth.py
+        python -m py_compile forms.py
+    
+    - name: 🔧 Validar configurações Docker
+      run: |
+        docker --version
+        docker-compose --version
+        docker-compose config
+    
+    - name: ✅ Validar templates
+      run: |
+        find templates -name "*.html" -exec echo "Validando {}" \;
+        # Verificar se templates principais existem
+        test -f templates/auth/login.html
+        test -f templates/base.html
+        test -f templates/index.html
+    
+    - name: 🔐 Validar configurações de segurança
+      run: |
+        # Verificar se arquivo .env.example existe e tem as variáveis necessárias
+        test -f .env.example
+        grep -q "SECRET_KEY" .env.example
+        grep -q "MONGODB_URI" .env.example
+        grep -q "FLASK_ENV" .env.example
+
+  # Job 2: Deploy (só roda se testes passaram e é push para main)
+  deploy:
+    name: 🚀 Deploy para GCP
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🔐 Configurar autenticação GCP
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+    
+    - name: ⚙️ Configurar gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+    
+    - name: 🔑 Configurar SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/gcp_deploy
+        chmod 600 ~/.ssh/gcp_deploy
+        ssh-keyscan -H ${{ secrets.GCP_VM_IP }} >> ~/.ssh/known_hosts
+    
+    - name: 🏥 Verificar saúde da VM
+      run: |
+        echo "🔍 Verificando se VM está acessível..."
+        ssh -i ~/.ssh/gcp_deploy -o ConnectTimeout=30 ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          echo '✅ VM acessível'
+          echo '📊 Status da VM:'
+          echo '  Uptime: $(uptime -p)'
+          echo '  Memória: $(free -h | grep Mem | awk \"{print \$3\"/\"\$2}\")'
+          echo '  Disco: $(df -h / | tail -1 | awk \"{print \$5}\")'
+        "
+    
+    - name: 🛑 Parar aplicação atual
+      run: |
+        echo "🛑 Parando aplicação atual..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          cd /home/gcp-user/analise-cartao || { echo '📁 Diretório não existe, criando...'; mkdir -p /home/gcp-user/analise-cartao; cd /home/gcp-user/analise-cartao; }
+          if [ -f docker-compose.yml ]; then
+            echo '⏹️ Parando containers...'
+            docker-compose down || echo '⚠️ Nenhum container rodando'
+          else
+            echo '📋 Primeira execução - sem containers para parar'
+          fi
+        "
+    
+    - name: 📦 Fazer backup da versão atual
+      run: |
+        echo "💾 Criando backup..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          cd /home/gcp-user/analise-cartao
+          BACKUP_DIR='backups/deploy_$(date +%Y%m%d_%H%M%S)'
+          mkdir -p \$BACKUP_DIR
+          
+          # Backup de arquivos importantes
+          [ -f users.json ] && cp users.json \$BACKUP_DIR/
+          [ -f .env ] && cp .env \$BACKUP_DIR/
+          [ -d uploads ] && cp -r uploads \$BACKUP_DIR/
+          
+          echo '✅ Backup criado em' \$BACKUP_DIR
+          
+          # Manter apenas os 5 backups mais recentes
+          ls -dt backups/deploy_* | tail -n +6 | xargs rm -rf
+        "
+    
+    - name: 📤 Enviar código atualizado
+      run: |
+        echo "📤 Enviando arquivos..."
+        
+        # Criar arquivo temporário com exclusões
+        cat > .rsync_exclude << EOF
+        .git/
+        .github/
+        __pycache__/
+        *.pyc
+        .env
+        users.json
+        uploads/
+        logs/
+        backups/
+        .pytest_cache/
+        node_modules/
+        EOF
+        
+        # Sincronizar arquivos
+        rsync -avz --delete --exclude-from=.rsync_exclude \
+          -e "ssh -i ~/.ssh/gcp_deploy -o StrictHostKeyChecking=no" \
+          ./ ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }}:/home/gcp-user/analise-cartao/
+        
+        echo "✅ Arquivos enviados"
+    
+    - name: ⚙️ Configurar ambiente na VM
+      run: |
+        echo "⚙️ Configurando ambiente..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          cd /home/gcp-user/analise-cartao
+          
+          # Criar diretórios necessários
+          mkdir -p uploads logs ssl backups
+          
+          # Configurar .env se não existir
+          if [ ! -f .env ]; then
+            echo '📝 Criando arquivo .env...'
+            cat > .env << 'EOF'
+        FLASK_ENV=production
+        SECRET_KEY=${{ secrets.SECRET_KEY }}
+        MONGODB_URI=${{ secrets.MONGODB_URI }}
+        REGISTRATION_ENABLED=false
+        SESSION_COOKIE_SECURE=false
+        SESSION_COOKIE_HTTPONLY=true
+        SESSION_COOKIE_SAMESITE=Lax
+        PORT=5000
+        HOST=0.0.0.0
+        EOF
+          else
+            echo '✅ Arquivo .env já existe'
+          fi
+          
+          # Verificar se usuário padrão existe
+          if [ ! -f users.json ]; then
+            echo '👤 Arquivo users.json não existe - será criado no primeiro acesso'
+          fi
+          
+          echo '✅ Ambiente configurado'
+        "
+    
+    - name: 🐳 Otimizar Docker para e2-micro
+      run: |
+        echo "🐳 Otimizando configuração Docker..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          cd /home/gcp-user/analise-cartao
+          
+          # Criar docker-compose otimizado para e2-micro
+          cat > docker-compose.yml << 'EOF'
+        version: '3.8'
+        
+        services:
+          web:
+            build: .
+            container_name: analise_cartao_web
+            ports:
+              - '5000:5000'
+            environment:
+              - FLASK_ENV=production
+            env_file:
+              - .env
+            volumes:
+              - ./uploads:/app/uploads
+              - ./logs:/app/logs
+              - ./users.json:/app/users.json
+            restart: unless-stopped
+            deploy:
+              resources:
+                limits:
+                  memory: 300M
+                reservations:
+                  memory: 200M
+            networks:
+              - analise_cartao_network
+        
+          nginx:
+            image: nginx:alpine
+            container_name: analise_cartao_nginx
+            ports:
+              - '80:80'
+              - '443:443'
+            volumes:
+              - ./nginx.conf:/etc/nginx/nginx.conf:ro
+              - ./ssl:/etc/nginx/ssl:ro
+              - ./static:/var/www/static:ro
+            restart: unless-stopped
+            depends_on:
+              - web
+            deploy:
+              resources:
+                limits:
+                  memory: 50M
+                reservations:
+                  memory: 30M
+            networks:
+              - analise_cartao_network
+        
+        networks:
+          analise_cartao_network:
+            driver: bridge
+        EOF
+          
+          # Otimizar Dockerfile para e2-micro
+          cat > Dockerfile << 'EOF'
+        FROM python:3.11-slim
+        
+        # Otimizações para pouca memória
+        ENV PYTHONUNBUFFERED=1
+        ENV PYTHONDONTWRITEBYTECODE=1
+        ENV PIP_NO_CACHE_DIR=1
+        ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+        
+        # Instalar dependências do sistema (mínimas)
+        RUN apt-get update && apt-get install -y --no-install-recommends \
+            curl \
+            && rm -rf /var/lib/apt/lists/* \
+            && apt-get clean
+        
+        # Criar usuário não-root
+        RUN groupadd -r appuser && useradd -r -g appuser appuser
+        
+        # Criar diretórios
+        RUN mkdir -p /app/uploads /app/logs && chown -R appuser:appuser /app
+        
+        WORKDIR /app
+        
+        # Copiar requirements primeiro (cache layer)
+        COPY requirements.txt .
+        
+        # Instalar dependências Python (otimizado para memória)
+        RUN pip install --no-cache-dir -r requirements.txt
+        
+        # Copiar código
+        COPY . .
+        RUN chown -R appuser:appuser /app
+        
+        USER appuser
+        
+        EXPOSE 5000
+        
+        # Health check leve
+        HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+            CMD curl -f http://localhost:5000/auth/login || exit 1
+        
+        # Usar gunicorn com configuração otimizada para e2-micro
+        CMD [\"gunicorn\", \"--bind\", \"0.0.0.0:5000\", \"--workers\", \"1\", \"--threads\", \"2\", \"--timeout\", \"120\", \"--max-requests\", \"500\", \"--preload\", \"app_secure:app\"]
+        EOF
+          
+          echo '✅ Configuração Docker otimizada'
+        "
+    
+    - name: 🔧 Configurar SSL automático
+      run: |
+        echo "🔒 Configurando SSL..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          cd /home/gcp-user/analise-cartao
+          
+          # Script para configurar SSL automaticamente
+          cat > setup_ssl.sh << 'EOF'
+        #!/bin/bash
+        
+        # Verificar se certbot está instalado
+        if ! command -v certbot &> /dev/null; then
+            echo '📦 Instalando Certbot...'
+            sudo apt update
+            sudo apt install -y certbot
+        fi
+        
+        # Criar certificado auto-assinado temporário
+        if [ ! -f ssl/cert.pem ]; then
+            echo '🔐 Criando certificado auto-assinado temporário...'
+            mkdir -p ssl
+            sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout ssl/key.pem \
+                -out ssl/cert.pem \
+                -subj '/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=localhost'
+            sudo chown -R gcp-user:gcp-user ssl/
+        fi
+        
+        echo '✅ SSL configurado (certificado auto-assinado)'
+        echo '💡 Para domínio real, execute: sudo certbot certonly --standalone -d seu-dominio.com'
+        EOF
+          
+          chmod +x setup_ssl.sh
+          ./setup_ssl.sh
+        "
+    
+    - name: 🚀 Construir e iniciar aplicação
+      run: |
+        echo "🚀 Iniciando aplicação..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          cd /home/gcp-user/analise-cartao
+          
+          # Limpar imagens antigas para economizar espaço
+          docker system prune -f
+          
+          # Construir com cache otimizado
+          echo '🔨 Construindo imagem...'
+          docker-compose build --no-cache web
+          
+          # Iniciar serviços
+          echo '▶️ Iniciando serviços...'
+          docker-compose up -d
+          
+          # Aguardar inicialização
+          echo '⏳ Aguardando inicialização...'
+          sleep 30
+          
+          # Verificar status
+          echo '📊 Status dos containers:'
+          docker-compose ps
+          
+          echo '🎉 Deploy concluído!'
+        "
+    
+    - name: 🔍 Verificar deploy
+      run: |
+        echo "🔍 Verificando deploy..."
+        
+        # Aguardar um pouco mais para garantir que tudo está funcionando
+        sleep 15
+        
+        # Testar endpoint de saúde
+        if curl -f -m 10 http://${{ secrets.GCP_VM_IP }}/auth/login > /dev/null 2>&1; then
+          echo "✅ Aplicação respondendo corretamente!"
+        else
+          echo "❌ Aplicação não está respondendo"
+          
+          # Debug: verificar logs
+          ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+            cd /home/gcp-user/analise-cartao
+            echo '🔍 Logs da aplicação:'
+            docker-compose logs --tail=20 web
+            echo '🔍 Logs do Nginx:'
+            docker-compose logs --tail=10 nginx
+          "
+          exit 1
+        fi
+    
+    - name: 📊 Status final
+      run: |
+        echo "📊 Status final do deploy:"
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          cd /home/gcp-user/analise-cartao
+          echo '🐳 Containers:'
+          docker-compose ps
+          echo ''
+          echo '💾 Uso de memória:'
+          free -h
+          echo ''
+          echo '💿 Uso de disco:'
+          df -h /
+          echo ''
+          echo '🌐 Acesso:'
+          echo '  HTTP:  http://${{ secrets.GCP_VM_IP }}'
+          echo '  HTTPS: https://${{ secrets.GCP_VM_IP }} (certificado auto-assinado)'
+          echo '  Login: admin / admin123'
+          echo ''
+          echo '✅ Deploy realizado com sucesso!'
+        "
+
+  # Job 3: Notificação (roda sempre após deploy, success ou failure)
+  notify:
+    name: 📢 Notificação
+    needs: [test, deploy]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📢 Notificar resultado
+      run: |
+        if [ "${{ needs.deploy.result }}" == "success" ]; then
+          echo "🎉 Deploy realizado com sucesso!"
+          echo "🌐 Aplicação disponível em: http://${{ secrets.GCP_VM_IP }}"
+          echo "👤 Login padrão: admin / admin123"
+        else
+          echo "❌ Deploy falhou!"
+          echo "🔍 Verifique os logs do workflow para mais detalhes"
+        fi

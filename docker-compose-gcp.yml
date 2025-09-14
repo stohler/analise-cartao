@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: analise_cartao_web
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./users.json:/app/users.json
+    restart: unless-stopped
+    # Limites de recursos para e2-micro (512MB RAM total)
+    deploy:
+      resources:
+        limits:
+          memory: 350M
+          cpus: '0.5'
+        reservations:
+          memory: 200M
+          cpus: '0.2'
+    # Health check otimizado
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/auth/login"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - analise_cartao_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: analise_cartao_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-gcp.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./static:/var/www/static:ro
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    # Limites mínimos para nginx
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.2'
+        reservations:
+          memory: 32M
+          cpus: '0.1'
+    networks:
+      - analise_cartao_network
+
+networks:
+  analise_cartao_network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1500
