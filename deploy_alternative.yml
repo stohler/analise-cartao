@@ -57,9 +57,8 @@
         # Extrair no servidor
         echo "📂 Extraindo arquivos na VM..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
-          # Usar variável de ambiente para o usuário correto
-          USER_HOME=/home/\$USER
-          PROJECT_DIR=\$USER_HOME/analise-cartao
+          # Usar diretório específico do usuário github-actions
+          PROJECT_DIR=/home/github-actions/analise-cartao
           
           # Criar diretório se não existir
           mkdir -p \$PROJECT_DIR
