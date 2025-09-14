@@ -44,8 +44,8 @@ jobs:
     - name: 🔧 Validar configurações Docker
       run: |
         docker --version
-        docker-compose --version
-        docker-compose config
+        docker compose version
+        docker compose config
     
     - name: ✅ Validar templates
       run: |
@@ -109,7 +109,7 @@ jobs:
           cd /home/gcp-user/analise-cartao || { echo '📁 Diretório não existe, criando...'; mkdir -p /home/gcp-user/analise-cartao; cd /home/gcp-user/analise-cartao; }
           if [ -f docker-compose.yml ]; then
             echo '⏹️ Parando containers...'
-            docker-compose down || echo '⚠️ Nenhum container rodando'
+            docker compose down || echo '⚠️ Nenhum container rodando'
           else
             echo '📋 Primeira execução - sem containers para parar'
           fi
@@ -352,11 +352,11 @@ jobs:
           
           # Construir com cache otimizado
           echo '🔨 Construindo imagem...'
-          docker-compose build --no-cache web
+          docker compose build --no-cache web
           
           # Iniciar serviços
           echo '▶️ Iniciando serviços...'
-          docker-compose up -d
+          docker compose up -d
           
           # Aguardar inicialização
           echo '⏳ Aguardando inicialização...'
@@ -364,7 +364,7 @@ jobs:
           
           # Verificar status
           echo '📊 Status dos containers:'
-          docker-compose ps
+          docker compose ps
           
           echo '🎉 Deploy concluído!'
         "
@@ -386,9 +386,9 @@ jobs:
           ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
             cd /home/gcp-user/analise-cartao
             echo '🔍 Logs da aplicação:'
-            docker-compose logs --tail=20 web
+            docker compose logs --tail=20 web
             echo '🔍 Logs do Nginx:'
-            docker-compose logs --tail=10 nginx
+            docker compose logs --tail=10 nginx
           "
           exit 1
         fi
@@ -399,7 +399,7 @@ jobs:
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
           cd /home/gcp-user/analise-cartao
           echo '🐳 Containers:'
-          docker-compose ps
+          docker compose ps
           echo ''
           echo '💾 Uso de memória:'
           free -h
