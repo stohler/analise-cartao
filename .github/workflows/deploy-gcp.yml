@@ -134,36 +134,63 @@ jobs:
           ls -dt backups/deploy_* | tail -n +6 | xargs rm -rf
         "
     
-    - name: 📤 Enviar código atualizado
+    - name: 📤 Enviar código atualizado (alternativa sem rsync)
       run: |
         echo "📤 Enviando arquivos..."
         
-        # Instalar rsync se não estiver disponível
-        if ! command -v rsync &> /dev/null; then
-          echo "📦 Instalando rsync..."
-          sudo apt-get update -qq
-          sudo apt-get install -y rsync
-        fi
+        # Criar arquivo temporário compactado excluindo arquivos desnecessários
+        echo "📦 Preparando arquivos para envio..."
+        tar --exclude='.git' \
+            --exclude='.github' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.env' \
+            --exclude='users.json' \
+            --exclude='uploads' \
+            --exclude='logs' \
+            --exclude='backups' \
+            --exclude='.pytest_cache' \
+            --exclude='node_modules' \
+            --exclude='venv*' \
+            -czf deploy_package.tar.gz .
         
-        # Criar arquivo temporário com exclusões
-        cat > .rsync_exclude << EOF
-        .git/
-        .github/
-        __pycache__/
-        *.pyc
-        .env
-        users.json
-        uploads/
-        logs/
-        backups/
-        .pytest_cache/
-        node_modules/
-        EOF
+        # Enviar arquivo compactado
+        echo "🚀 Enviando pacote..."
+        scp -i ~/.ssh/gcp_deploy -o StrictHostKeyChecking=no \
+            deploy_package.tar.gz \
+            ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }}:/tmp/
         
-        # Sincronizar arquivos
-        rsync -avz --delete --exclude-from=.rsync_exclude \
-          -e "ssh -i ~/.ssh/gcp_deploy -o StrictHostKeyChecking=no" \
-          ./ ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }}:/home/gcp-user/analise-cartao/
+        # Extrair no servidor
+        echo "📂 Extraindo arquivos na VM..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          cd /home/gcp-user/analise-cartao
+          
+          # Fazer backup dos arquivos importantes antes de extrair
+          mkdir -p temp_backup
+          [ -f .env ] && cp .env temp_backup/
+          [ -f users.json ] && cp users.json temp_backup/
+          [ -d uploads ] && cp -r uploads temp_backup/ 2>/dev/null || true
+          
+          # Limpar diretório atual (exceto backups e arquivos importantes)
+          find . -maxdepth 1 -type f ! -name '.env' ! -name 'users.json' -delete 2>/dev/null || true
+          find . -maxdepth 1 -type d ! -name '.' ! -name 'uploads' ! -name 'logs' ! -name 'backups' ! -name 'ssl' ! -name 'temp_backup' -exec rm -rf {} + 2>/dev/null || true
+          
+          # Extrair novos arquivos
+          tar -xzf /tmp/deploy_package.tar.gz
+          
+          # Restaurar arquivos importantes
+          [ -f temp_backup/.env ] && cp temp_backup/.env .
+          [ -f temp_backup/users.json ] && cp temp_backup/users.json .
+          [ -d temp_backup/uploads ] && cp -r temp_backup/uploads . 2>/dev/null || true
+          
+          # Limpar
+          rm -rf temp_backup /tmp/deploy_package.tar.gz
+          
+          echo '✅ Arquivos extraídos e configurados'
+        "
+        
+        # Remover arquivo temporário local
+        rm -f deploy_package.tar.gz
         
         echo "✅ Arquivos enviados"
     
