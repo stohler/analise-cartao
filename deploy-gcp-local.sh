@@ -221,7 +221,7 @@ ssh -i "$SSH_KEY" "$GCP_VM_USER@$GCP_VM_IP" "
     echo '💾 Uso de recursos após deploy:'
     echo '  Memória:' \$(free -h | grep Mem | awk '{print \$3\"/\"\$2}')
     echo '  Swap:' \$(free -h | grep Swap | awk '{print \$3\"/\"\$2}')
-    echo '  Disco:' \$(df -h / | tail -1 | awk '{print \$5\" usado\"}')
+    echo '  Disco:' \$(df -h / | tail -1 | awk '{print \$5 \" usado\"}')
 "
 
 # Verificar se aplicação está respondendo
