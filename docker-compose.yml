@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: pdf_analyzer_web
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - MONGODB_URI=${MONGODB_URI}
+      - REGISTRATION_ENABLED=${REGISTRATION_ENABLED:-true}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./users.json:/app/users.json
+    restart: unless-stopped
+    depends_on:
+      - nginx
+    networks:
+      - pdf_analyzer_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: pdf_analyzer_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./static:/var/www/static:ro
+    restart: unless-stopped
+    networks:
+      - pdf_analyzer_network
+
+  # MongoDB local (opcional - use apenas se não tiver MongoDB Atlas)
+  # mongo:
+  #   image: mongo:6.0
+  #   container_name: pdf_analyzer_mongo
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: admin
+  #     MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-changeme}
+  #   volumes:
+  #     - mongo_data:/data/db
+  #   restart: unless-stopped
+  #   networks:
+  #     - pdf_analyzer_network
+
+networks:
+  pdf_analyzer_network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    driver: local
