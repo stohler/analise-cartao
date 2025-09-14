@@ -140,19 +140,46 @@ jobs:
         
         # Criar arquivo temporário compactado excluindo arquivos desnecessários
         echo "📦 Preparando arquivos para envio..."
-        tar --exclude='.git' \
-            --exclude='.github' \
-            --exclude='__pycache__' \
-            --exclude='*.pyc' \
-            --exclude='.env' \
-            --exclude='users.json' \
-            --exclude='uploads' \
-            --exclude='logs' \
-            --exclude='backups' \
-            --exclude='.pytest_cache' \
-            --exclude='node_modules' \
-            --exclude='venv*' \
-            -czf deploy_package.tar.gz .
+        
+        # Criar diretório temporário para arquivos limpos
+        TEMP_DIR=$(mktemp -d)
+        echo "📁 Criando pacote limpo em: $TEMP_DIR"
+        
+        # Copiar arquivos necessários para o diretório temporário
+        # Usar find + cp para sistemas sem rsync
+        echo "📋 Copiando arquivos necessários..."
+        find . -type f \
+            ! -path './.git*' \
+            ! -path './.github*' \
+            ! -path './__pycache__*' \
+            ! -path './venv*' \
+            ! -path './uploads*' \
+            ! -path './logs*' \
+            ! -path './backups*' \
+            ! -path './.pytest_cache*' \
+            ! -path './node_modules*' \
+            ! -name '*.pyc' \
+            ! -name '.env' \
+            ! -name 'users.json' \
+            ! -name '*.log' \
+            ! -name 'session_*.json' \
+            ! -name 'deploy_package.tar.gz' \
+            -exec cp --parents {} $TEMP_DIR/ \;
+        
+        # Criar arquivo compactado do diretório limpo
+        echo "🗜️ Compactando arquivos..."
+        tar -czf deploy_package.tar.gz -C $TEMP_DIR .
+        
+        # Verificar se o pacote foi criado com sucesso
+        if [ ! -f deploy_package.tar.gz ]; then
+            echo "❌ Erro: Pacote não foi criado!"
+            rm -rf $TEMP_DIR
+            exit 1
+        fi
+        
+        # Limpar diretório temporário
+        rm -rf $TEMP_DIR
+        echo "✅ Pacote criado: $(ls -lh deploy_package.tar.gz | awk '{print $5}')"
         
         # Enviar arquivo compactado
         echo "🚀 Enviando pacote..."
