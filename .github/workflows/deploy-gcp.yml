@@ -98,8 +98,8 @@ jobs:
           echo '✅ VM acessível'
           echo '📊 Status da VM:'
           echo '  Uptime: $(uptime -p)'
-          echo '  Memória: $(free -h | grep Mem | awk \"{print \$3\"/\"\$2}\")'
-          echo '  Disco: $(df -h / | tail -1 | awk \"{print \$5}\")'
+          echo '  Memória: $(free -h | grep Mem | awk "{print \$3\"/\"\$2}")'
+          echo '  Disco: $(df -h / | tail -1 | awk "{print \$5}")'
         "
     
     - name: 🛑 Parar aplicação atual
@@ -137,6 +137,13 @@ jobs:
     - name: 📤 Enviar código atualizado
       run: |
         echo "📤 Enviando arquivos..."
+        
+        # Instalar rsync se não estiver disponível
+        if ! command -v rsync &> /dev/null; then
+          echo "📦 Instalando rsync..."
+          sudo apt-get update -qq
+          sudo apt-get install -y rsync
+        fi
         
         # Criar arquivo temporário com exclusões
         cat > .rsync_exclude << EOF
