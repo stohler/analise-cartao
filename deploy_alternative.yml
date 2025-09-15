@@ -1,0 +1,96 @@
+# Alternativa para deploy sem rsync - use apenas se necessário
+# Substitua o step "📤 Enviar código atualizado" por este:
+
+    - name: 📤 Enviar código atualizado (alternativa sem rsync)
+      run: |
+        echo "📤 Enviando arquivos..."
+        
+        # Criar arquivo temporário compactado excluindo arquivos desnecessários
+        echo "📦 Preparando arquivos para envio..."
+        
+        # Criar diretório temporário para arquivos limpos
+        TEMP_DIR=$(mktemp -d)
+        echo "📁 Criando pacote limpo em: $TEMP_DIR"
+        
+        # Copiar arquivos necessários para o diretório temporário
+        # Usar cp com find para sistemas sem rsync
+        find . -type f \
+            ! -path './.git/*' \
+            ! -path './.github/*' \
+            ! -path './__pycache__/*' \
+            ! -path './venv*/*' \
+            ! -path './uploads/*' \
+            ! -path './logs/*' \
+            ! -path './backups/*' \
+            ! -path './.pytest_cache/*' \
+            ! -path './node_modules/*' \
+            ! -name '*.pyc' \
+            ! -name '.env' \
+            ! -name 'users.json' \
+            ! -name '*.log' \
+            ! -name 'session_*.json' \
+            ! -name 'deploy_package.tar.gz' \
+            -exec cp --parents {} $TEMP_DIR/ \;
+        
+        # Criar arquivo compactado do diretório limpo
+        echo "🗜️ Compactando arquivos..."
+        tar -czf deploy_package.tar.gz -C $TEMP_DIR .
+        
+        # Limpar diretório temporário
+        rm -rf $TEMP_DIR
+        echo "✅ Pacote criado: $(ls -lh deploy_package.tar.gz | awk '{print $5}')"
+        
+        # Verificar se o pacote foi criado com sucesso
+        if [ ! -f deploy_package.tar.gz ]; then
+            echo "❌ Erro: Pacote não foi criado!"
+            exit 1
+        fi
+        
+        # Enviar arquivo compactado
+        echo "🚀 Enviando pacote..."
+        scp -i ~/.ssh/gcp_deploy -o StrictHostKeyChecking=no \
+            deploy_package.tar.gz \
+            ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }}:/tmp/
+            
+        echo "✅ Pacote enviado com sucesso"
+        
+        # Extrair no servidor
+        echo "📂 Extraindo arquivos na VM..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          # Usar diretório específico do usuário github-actions
+          PROJECT_DIR=/home/github-actions/analise-cartao
+          
+          # Criar diretório se não existir
+          mkdir -p \$PROJECT_DIR
+          cd \$PROJECT_DIR
+          
+          echo '📁 Trabalhando no diretório:' \$(pwd)
+          
+          # Fazer backup dos arquivos importantes antes de extrair
+          mkdir -p temp_backup
+          [ -f .env ] && cp .env temp_backup/
+          [ -f users.json ] && cp users.json temp_backup/
+          [ -d uploads ] && cp -r uploads temp_backup/ 2>/dev/null || true
+          
+          # Limpar diretório atual (exceto backups e arquivos importantes)
+          find . -maxdepth 1 -type f ! -name '.env' ! -name 'users.json' -delete 2>/dev/null || true
+          find . -maxdepth 1 -type d ! -name '.' ! -name 'uploads' ! -name 'logs' ! -name 'backups' ! -name 'ssl' ! -name 'temp_backup' -exec rm -rf {} + 2>/dev/null || true
+          
+          # Extrair novos arquivos
+          tar -xzf /tmp/deploy_package.tar.gz
+          
+          # Restaurar arquivos importantes
+          [ -f temp_backup/.env ] && cp temp_backup/.env .
+          [ -f temp_backup/users.json ] && cp temp_backup/users.json .
+          [ -d temp_backup/uploads ] && cp -r temp_backup/uploads . 2>/dev/null || true
+          
+          # Limpar
+          rm -rf temp_backup /tmp/deploy_package.tar.gz
+          
+          echo '✅ Arquivos extraídos e configurados'
+        "
+        
+        # Remover arquivo temporário local
+        rm -f deploy_package.tar.gz
+        
+        echo "✅ Arquivos enviados"
