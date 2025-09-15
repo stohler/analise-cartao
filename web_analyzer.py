@@ -101,6 +101,7 @@ def upload_file():
     # Capturar data de pagamento
     payment_date_str = request.form.get('payment_date')
     if not payment_date_str:
+        print("Data de pagamento é obrigatória")
         flash('Data de pagamento é obrigatória', 'error')
         return redirect(url_for('index'))
     
@@ -120,7 +121,6 @@ def upload_file():
         try:
             # Analisar PDF
             result = analyzer.analyze_pdf(filepath)
-            
             # Aplicar categorização automática se MongoDB estiver disponível
             if MONGODB_AVAILABLE and mongo_connected and mongo_handler:
                 auto_categorized_count = 0
@@ -181,11 +181,43 @@ def analysis_result(session_file):
         # Extrair session_id do nome do arquivo (session_<id>.json)
         session_id = session_file.replace('session_', '').replace('.json', '')
         
+        # Obter categorias do MongoDB se disponível
+        categories = []
+        if MONGODB_AVAILABLE and mongo_connected and mongo_handler:
+            try:
+                categories = mongo_handler.get_categories()
+            except Exception as e:
+                print(f"Erro ao obter categorias: {e}")
+                # Usar categorias padrão se houver erro
+                categories = [
+                    {'nome': 'alimentacao', 'nome_exibicao': 'Alimentação'},
+                    {'nome': 'transporte', 'nome_exibicao': 'Transporte'},
+                    {'nome': 'saude', 'nome_exibicao': 'Saúde'},
+                    {'nome': 'educacao', 'nome_exibicao': 'Educação'},
+                    {'nome': 'lazer', 'nome_exibicao': 'Lazer'},
+                    {'nome': 'compras', 'nome_exibicao': 'Compras'},
+                    {'nome': 'servicos', 'nome_exibicao': 'Serviços'},
+                    {'nome': 'outros', 'nome_exibicao': 'Outros'}
+                ]
+        else:
+            # Usar categorias padrão se MongoDB não estiver disponível
+            categories = [
+                {'nome': 'alimentacao', 'nome_exibicao': 'Alimentação'},
+                {'nome': 'transporte', 'nome_exibicao': 'Transporte'},
+                {'nome': 'saude', 'nome_exibicao': 'Saúde'},
+                {'nome': 'educacao', 'nome_exibicao': 'Educação'},
+                {'nome': 'lazer', 'nome_exibicao': 'Lazer'},
+                {'nome': 'compras', 'nome_exibicao': 'Compras'},
+                {'nome': 'servicos', 'nome_exibicao': 'Serviços'},
+                {'nome': 'outros', 'nome_exibicao': 'Outros'}
+            ]
+        
         return render_template('analysis.html', 
                              session_data=session_data,
                              session_file=session_file,
                              session_id=session_id,
-                             mongo_connected=mongo_connected)
+                             mongo_connected=mongo_connected,
+                             categories=categories)
     except Exception as e:
         flash(f'Erro ao carregar resultado: {str(e)}', 'error')
         return redirect(url_for('index'))
@@ -652,6 +684,70 @@ def api_remove_session_transaction():
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erro ao remover transação da sessão: {str(e)}'}), 500
+
+@app.route('/api/session/update_category', methods=['POST'])
+def api_update_session_category():
+    """API para atualizar categoria de uma transação na sessão"""
+    try:
+        data = request.get_json()
+        transaction_index = data.get('transaction_index')
+        session_id = data.get('session_id')
+        new_category = data.get('new_category')
+        
+        if transaction_index is None or not session_id or not new_category:
+            return jsonify({'success': False, 'message': 'Índice da transação, ID da sessão e nova categoria são obrigatórios'}), 400
+        
+        # Carregar dados da sessão
+        session_file = f'session_{session_id}.json'
+        if not os.path.exists(session_file):
+            return jsonify({'success': False, 'message': 'Sessão não encontrada'}), 404
+        
+        with open(session_file, 'r', encoding='utf-8') as f:
+            session_data = json.load(f)
+        
+        if 'analysis_result' not in session_data or 'transacoes' not in session_data['analysis_result']:
+            return jsonify({'success': False, 'message': 'Dados de sessão inválidos'}), 400
+        
+        transactions = session_data['analysis_result']['transacoes']
+        
+        if transaction_index >= len(transactions):
+            return jsonify({'success': False, 'message': 'Índice da transação inválido'}), 400
+        
+        # Obter transação atual
+        transaction = transactions[transaction_index]
+        old_category = transaction.get('categoria', 'outros')
+        
+        # Atualizar categoria
+        transaction['categoria'] = new_category
+        
+        # Salvar padrão de categorização para aprendizado automático se MongoDB estiver disponível
+        if MONGODB_AVAILABLE and mongo_connected and mongo_handler:
+            try:
+                pattern_result = mongo_handler.save_categorization_pattern(
+                    descricao=transaction.get('descricao', ''),
+                    categoria=new_category,
+                    banco=transaction.get('banco'),
+                    origem_cartao=transaction.get('origem_cartao', 'Cartão Principal')
+                )
+                if pattern_result['success']:
+                    print(f"✅ Padrão de categorização salvo: {transaction.get('descricao', '')} -> {new_category}")
+            except Exception as e:
+                print(f"⚠️ Erro ao salvar padrão: {e}")
+        
+        # Salvar sessão atualizada
+        with open(session_file, 'w', encoding='utf-8') as f:
+            json.dump(session_data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Categoria atualizada de "{old_category}" para "{new_category}"',
+            'old_category': old_category,
+            'new_category': new_category,
+            'pattern_saved': MONGODB_AVAILABLE and mongo_connected
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro ao atualizar categoria da sessão: {str(e)}'}), 500
 
 @app.route('/api/transactions/remove', methods=['POST'])
 def api_remove_transaction():

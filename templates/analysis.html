@@ -51,14 +51,13 @@
                                 <td>R$ {{ "%.2f"|format(trans.valor) }}</td>
                                 <td>
                                     <select class="form-select form-select-sm category-select" data-transaction-id="{{ loop.index0 }}">
-                                        <option value="alimentacao" {% if trans.categoria == 'alimentacao' %}selected{% endif %}>Alimentação</option>
-                                        <option value="transporte" {% if trans.categoria == 'transporte' %}selected{% endif %}>Transporte</option>
-                                        <option value="saude" {% if trans.categoria == 'saude' %}selected{% endif %}>Saúde</option>
-                                        <option value="educacao" {% if trans.categoria == 'educacao' %}selected{% endif %}>Educação</option>
-                                        <option value="lazer" {% if trans.categoria == 'lazer' %}selected{% endif %}>Lazer</option>
-                                        <option value="compras" {% if trans.categoria == 'compras' %}selected{% endif %}>Compras</option>
-                                        <option value="servicos" {% if trans.categoria == 'servicos' %}selected{% endif %}>Serviços</option>
-                                        <option value="outros" {% if trans.categoria == 'outros' %}selected{% endif %}>Outros</option>
+                                        {% for category in categories %}
+                                            {% if category.ativo is not defined or category.ativo %}
+                                                <option value="{{ category.nome }}" {% if trans.categoria == category.nome %}selected{% endif %}>
+                                                    {{ category.nome_exibicao }}
+                                                </option>
+                                            {% endif %}
+                                        {% endfor %}
                                     </select>
                                 </td>
                                 <td>
@@ -313,17 +312,51 @@
 
     // Função para atualizar categoria
     function updateCategory(transactionId, newCategory) {
-        // Atualizar a categoria na interface
-        const row = document.querySelector(`tr[data-transaction-id="${transactionId}"]`);
-        if (row) {
-            const categorySelect = row.querySelector('.category-select');
-            if (categorySelect) {
-                categorySelect.value = newCategory;
-            }
-        }
+        // Obter session_id da URL
+        const sessionId = '{{ session_id }}';
         
-        console.log(`Categoria atualizada para transação ${transactionId}: ${newCategory}`);
-        showToast('Categoria atualizada na interface!', 'success');
+        // Fazer chamada AJAX para salvar no backend
+        fetch('/api/session/update_category', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                transaction_index: parseInt(transactionId),
+                session_id: sessionId,
+                new_category: newCategory
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Atualizar a interface
+                const row = document.querySelector(`tr[data-transaction-id="${transactionId}"]`);
+                if (row) {
+                    const categorySelect = row.querySelector('.category-select');
+                    if (categorySelect) {
+                        categorySelect.value = newCategory;
+                    }
+                }
+                
+                console.log(`Categoria atualizada: ${data.message}`);
+                
+                // Mostrar mensagem de sucesso com informações sobre padrão salvo
+                let message = 'Categoria atualizada com sucesso!';
+                if (data.pattern_saved) {
+                    message += ' Padrão salvo para auto-categorização.';
+                }
+                
+                showToast(message, 'success');
+            } else {
+                console.error('Erro ao atualizar categoria:', data.message);
+                showToast('Erro: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erro na requisição:', error);
+            showToast('Erro ao salvar categoria', 'error');
+        });
     }
 
     // Atualizar contador de transações

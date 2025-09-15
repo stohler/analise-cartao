@@ -383,6 +383,7 @@ class PDFAnalyzer:
             if not transactions:
                 raise Exception("Nenhuma transação encontrada no texto")
             
+            print(f"Transações encontradas: {len(transactions)}")
             return {
                 'banco_detectado': bank_format,
                 'total_transacoes': len(transactions),
@@ -402,7 +403,8 @@ class PDFAnalyzer:
                 raise Exception("Não foi possível extrair texto do PDF")
             
             # Usar o método de análise de texto
-            return self.analyze_pdf_text(text)
+            result = self.analyze_pdf_text(text)
+            return result
             
         except Exception as e:
             raise Exception(f"Erro ao analisar PDF: {str(e)}")

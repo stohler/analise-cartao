@@ -246,8 +246,16 @@
             e.preventDefault();
             console.log('Submitting with selected file:', window.selectedFile.name);
             
+            // Validate payment date
+            const paymentDate = document.getElementById('paymentDate').value;
+            if (!paymentDate) {
+                showToast('Por favor, selecione a data de pagamento', 'error');
+                return;
+            }
+            
             const formData = new FormData();
             formData.append('file', window.selectedFile);
+            formData.append('payment_date', paymentDate);
             
             const originalText = showLoading(analyzeBtn);
             
