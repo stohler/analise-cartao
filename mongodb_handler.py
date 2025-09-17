@@ -94,7 +94,7 @@ class MongoDBHandler:
         Returns:
             bool: True se é duplicada, False caso contrário
         """
-        if not self.collection:
+        if self.collection is None:
             return False
             
         transaction_hash = self.generate_transaction_hash(transaction)
@@ -159,7 +159,7 @@ class MongoDBHandler:
         Returns:
             Dict: Resultado da operação com estatísticas
         """
-        if not self.collection:
+        if self.collection is None:
             return {
                 'success': False,
                 'message': 'Não conectado ao MongoDB',
@@ -222,7 +222,7 @@ class MongoDBHandler:
         Returns:
             int: Número de transações
         """
-        if not self.collection:
+        if self.collection is None:
             return 0
         
         try:
@@ -241,7 +241,7 @@ class MongoDBHandler:
         Returns:
             List[Dict]: Lista de transações
         """
-        if not self.collection:
+        if self.collection is None:
             return []
         
         try:
@@ -263,7 +263,7 @@ class MongoDBHandler:
         Returns:
             List[Dict]: Lista de transações no período
         """
-        if not self.collection:
+        if self.collection is None:
             return []
         
         try:
@@ -283,6 +283,114 @@ class MongoDBHandler:
             print(f"❌ Erro ao buscar transações por período: {e}")
             return []
     
+    def get_transactions_by_category_and_period(self, start_date: str, end_date: str, category: str = None, card_origin: str = None) -> Dict:
+        """
+        Retorna transações agrupadas por categoria dentro de um período específico
+        
+        Args:
+            start_date: Data de início (formato YYYY-MM-DD)
+            end_date: Data de fim (formato YYYY-MM-DD)
+            category: Categoria específica (opcional)
+            card_origin: Origem do cartão (opcional)
+            
+        Returns:
+            Dict: Relatório com transações agrupadas por categoria
+        """
+        if self.collection is None:
+            return {
+                'success': False,
+                'message': 'MongoDB não conectado',
+                'categories': {},
+                'total_amount': 0,
+                'total_transactions': 0
+            }
+        
+        try:
+            # Construir query base
+            query = {
+                "data_pagamento": {
+                    "$gte": start_date,
+                    "$lte": end_date
+                }
+            }
+            
+            # Adicionar filtros opcionais
+            if category:
+                query["categoria"] = category
+            if card_origin:
+                query["origem_cartao"] = card_origin
+            
+            # Buscar transações
+            transactions = list(self.collection.find(query))
+            
+            # Agrupar por categoria
+            categories = {}
+            total_amount = 0
+            total_transactions = len(transactions)
+            
+            for transaction in transactions:
+                cat = transaction.get('categoria', 'outros')
+                amount = float(transaction.get('valor', 0))
+                
+                if cat not in categories:
+                    categories[cat] = {
+                        'name': cat,
+                        'transactions': [],
+                        'total_amount': 0,
+                        'count': 0
+                    }
+                
+                categories[cat]['transactions'].append(transaction)
+                categories[cat]['total_amount'] += amount
+                categories[cat]['count'] += 1
+                total_amount += amount
+            
+            # Ordenar categorias por valor total (decrescente)
+            sorted_categories = dict(sorted(categories.items(), key=lambda x: x[1]['total_amount'], reverse=True))
+            
+            return {
+                'success': True,
+                'categories': sorted_categories,
+                'total_amount': total_amount,
+                'total_transactions': total_transactions,
+                'period': {
+                    'start_date': start_date,
+                    'end_date': end_date
+                },
+                'filters': {
+                    'category': category,
+                    'card_origin': card_origin
+                }
+            }
+            
+        except Exception as e:
+            print(f"❌ Erro ao buscar transações por categoria e período: {e}")
+            return {
+                'success': False,
+                'message': f'Erro ao buscar transações: {str(e)}',
+                'categories': {},
+                'total_amount': 0,
+                'total_transactions': 0
+            }
+    
+    def get_card_origins(self) -> List[str]:
+        """
+        Retorna lista de origens de cartão disponíveis
+        
+        Returns:
+            List[str]: Lista de origens de cartão únicas
+        """
+        if self.collection is None:
+            return []
+        
+        try:
+            # Buscar origens únicas
+            origins = self.collection.distinct("origem_cartao")
+            return [origin for origin in origins if origin]  # Remove valores None/vazios
+        except Exception as e:
+            print(f"❌ Erro ao buscar origens de cartão: {e}")
+            return []
+    
     def get_monthly_statistics(self, year: int, month: int, card_origin: str = None) -> Dict:
         """
         Retorna estatísticas mensais
@@ -295,7 +403,7 @@ class MongoDBHandler:
         Returns:
             Dict: Estatísticas do mês
         """
-        if not self.collection:
+        if self.collection is None:
             return {}
         
         try:
@@ -357,7 +465,7 @@ class MongoDBHandler:
         Returns:
             List[Dict]: Lista de transações
         """
-        if not self.collection:
+        if self.collection is None:
             return []
         
         try:
@@ -367,11 +475,38 @@ class MongoDBHandler:
             print(f"❌ Erro ao buscar transações: {e}")
             return []
     
+    def get_user_transactions(self, user_id: str, limit: int = 100) -> List[Dict]:
+        """
+        Retorna transações de um usuário específico
+        
+        Args:
+            user_id: ID do usuário
+            limit: Limite de transações a retornar
+            
+        Returns:
+            List[Dict]: Lista de transações do usuário
+        """
+        if self.collection is None:
+            return []
+        
+        try:
+            # Buscar transações do usuário (assumindo que há um campo user_id)
+            # Se não houver campo user_id, retorna todas as transações
+            query = {}
+            if user_id:
+                query['user_id'] = user_id
+            
+            cursor = self.collection.find(query).limit(limit).sort("data_importacao", -1)
+            return list(cursor)
+        except Exception as e:
+            print(f"❌ Erro ao buscar transações do usuário: {e}")
+            return []
+    
     def create_indexes(self):
         """
         Cria índices para melhorar a performance
         """
-        if not self.collection:
+        if self.collection is None:
             return
         
         try:
@@ -399,7 +534,7 @@ class MongoDBHandler:
         Returns:
             Lista de categorias
         """
-        if not self.collection:
+        if self.collection is None:
             return []
         
         try:
@@ -422,7 +557,7 @@ class MongoDBHandler:
         Returns:
             Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -467,7 +602,7 @@ class MongoDBHandler:
         Returns:
             Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -510,7 +645,7 @@ class MongoDBHandler:
         Returns:
             Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -542,7 +677,7 @@ class MongoDBHandler:
         Returns:
             Dict: Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -588,7 +723,7 @@ class MongoDBHandler:
         Returns:
             Dict: Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -650,7 +785,7 @@ class MongoDBHandler:
         Returns:
             Dict ou None: Transação encontrada ou None
         """
-        if not self.collection:
+        if self.collection is None:
             return None
         
         try:
@@ -669,7 +804,7 @@ class MongoDBHandler:
         Returns:
             Dict: Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -700,7 +835,7 @@ class MongoDBHandler:
         Returns:
             Dict: Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -795,7 +930,7 @@ class MongoDBHandler:
         Returns:
             Dict: Resultado com transações e metadados de paginação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -882,7 +1017,7 @@ class MongoDBHandler:
         Returns:
             Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -931,7 +1066,7 @@ class MongoDBHandler:
         Returns:
             Resultado da operação
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:
@@ -992,7 +1127,7 @@ class MongoDBHandler:
         Returns:
             Dict com categoria encontrada e score de confiança
         """
-        if not self.collection:
+        if self.collection is None:
             return {'found': False, 'categoria': None, 'confidence': 0.0}
         
         try:
@@ -1133,7 +1268,7 @@ class MongoDBHandler:
         Returns:
             Estatísticas dos padrões
         """
-        if not self.collection:
+        if self.collection is None:
             return {'success': False, 'message': 'MongoDB não conectado'}
         
         try:

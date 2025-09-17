@@ -20,9 +20,19 @@ class User(UserMixin):
         self.username = username
         self.email = email
         self.password_hash = password_hash
-        self.is_active = is_active
+        self._is_active = is_active
         self.created_at = created_at or datetime.now()
         self.last_login = last_login
+    
+    @property
+    def is_active(self):
+        """Propriedade is_active para Flask-Login"""
+        return self._is_active
+    
+    @is_active.setter
+    def is_active(self, value):
+        """Setter para is_active"""
+        self._is_active = value
     
     def check_password(self, password):
         """Verifica se a senha está correta"""
@@ -44,7 +54,7 @@ class User(UserMixin):
             'username': self.username,
             'email': self.email,
             'password_hash': self.password_hash,
-            'is_active': self.is_active,
+            'is_active': self._is_active,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'last_login': self.last_login.isoformat() if isinstance(self.last_login, datetime) else self.last_login
         }

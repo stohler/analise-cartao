@@ -13,7 +13,7 @@
                 <div>
                     <span class="badge bg-primary me-2">Local: {{ local_transactions|length }}</span>
                     {% if mongo_connected %}
-                    <span class="badge bg-success" id="mongo-count">MongoDB: {{ mongo_transactions|length }}</span>
+                    <span class="badge bg-success" id="mongo-count">MongoDB: {{ mongo_count }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -27,7 +27,7 @@
                     {% if mongo_connected %}
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="mongo-tab" data-bs-toggle="tab" data-bs-target="#mongo" type="button" role="tab">
-                            <i class="fas fa-database me-2"></i>MongoDB ({{ mongo_transactions|length }})
+                            <i class="fas fa-database me-2"></i>MongoDB ({{ mongo_count }})
                         </button>
                     </li>
                     {% endif %}
@@ -312,6 +312,14 @@ function updatePagination(pagination) {
         Página ${pagination.page} de ${pagination.total_pages} 
         (${pagination.total_count} transações)
     `;
+    
+    // Atualizar contador na aba e no cabeçalho
+    const mongoTab = document.getElementById('mongo-tab');
+    const mongoCountBadge = document.getElementById('mongo-count');
+    if (mongoTab && mongoCountBadge) {
+        mongoTab.innerHTML = `<i class="fas fa-database me-2"></i>MongoDB (${pagination.total_count})`;
+        mongoCountBadge.innerHTML = `MongoDB: ${pagination.total_count}`;
+    }
     
     // Criar botões de paginação
     let paginationHTML = '';

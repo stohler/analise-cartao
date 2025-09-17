@@ -209,6 +209,21 @@ class DataHandler:
         )
         return sorted_transactions[:limit]
     
+    def get_user_transactions(self, user_id: str, limit: int = 100) -> List[Dict]:
+        """
+        Retorna transações de um usuário específico (para compatibilidade com MongoDB)
+        
+        Args:
+            user_id: ID do usuário (ignorado no DataHandler local)
+            limit: Limite de transações a retornar
+            
+        Returns:
+            List[Dict]: Lista de transações
+        """
+        # No DataHandler local, não há separação por usuário
+        # Retorna todas as transações
+        return self.get_all_transactions(limit)
+    
     def export_to_mongodb_format(self) -> List[Dict]:
         """
         Exporta transações no formato para MongoDB
