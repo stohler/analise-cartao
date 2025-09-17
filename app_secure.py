@@ -489,24 +489,104 @@ def create_app():
     def view_transactions():
         """Página de visualização de transações"""
         try:
-            # Obter transações locais do usuário
-            local_transactions = data_handler.get_user_transactions(current_user.id, limit=100)
+            if not MONGODB_AVAILABLE or not mongo_connected or not mongo_handler:
+                flash('Funcionalidade de transações não disponível - MongoDB necessário', 'error')
+                return redirect(url_for('index'))
             
-            # Obter transações do MongoDB se conectado
-            mongo_transactions = []
-            mongo_count = 0
-            if MONGODB_AVAILABLE and mongo_connected and mongo_handler:
-                try:
-                    mongo_transactions = mongo_handler.get_user_transactions(current_user.id, limit=100)
-                    mongo_count = mongo_handler.get_transactions_count()
-                except:
-                    pass
+            # Obter parâmetros de filtro
+            page = int(request.args.get('page', 1))
+            per_page = int(request.args.get('per_page', 20))
+            keyword = request.args.get('keyword', '').strip() or None
+            start_date = request.args.get('start_date', '').strip() or None
+            end_date = request.args.get('end_date', '').strip() or None
+            payment_start_date = request.args.get('payment_start_date', '').strip() or None
+            payment_end_date = request.args.get('payment_end_date', '').strip() or None
+            card_origin = request.args.get('card_origin', '').strip() or None
+            banco = request.args.get('banco', '').strip() or None
+            categoria = request.args.get('categoria', '').strip() or None
+            
+            # Se não há filtros de data de pagamento, preencher com mês corrente
+            if not payment_start_date and not payment_end_date:
+                from datetime import datetime, date
+                today = date.today()
+                # Primeiro dia do mês atual
+                payment_start_date = today.replace(day=1).strftime('%Y-%m-%d')
+                # Último dia do mês atual
+                if today.month == 12:
+                    next_month = today.replace(year=today.year + 1, month=1, day=1)
+                else:
+                    next_month = today.replace(month=today.month + 1, day=1)
+                payment_end_date = (next_month - date.resolution).strftime('%Y-%m-%d')
+            
+            # Obter transações do MongoDB com filtros
+            try:
+                result = mongo_handler.get_transactions_paginated(
+                    page=page,
+                    per_page=per_page,
+                    keyword=keyword,
+                    start_date=start_date,
+                    end_date=end_date,
+                    card_origin=card_origin,
+                    banco=banco,
+                    payment_start_date=payment_start_date,
+                    payment_end_date=payment_end_date
+                )
+            except Exception as e:
+                print(f"DEBUG: Erro na chamada get_transactions_paginated: {e}")
+                # Fallback para chamada sem os novos parâmetros
+                result = mongo_handler.get_transactions_paginated(
+                    page=page,
+                    per_page=per_page,
+                    keyword=keyword,
+                    start_date=start_date,
+                    end_date=end_date,
+                    card_origin=card_origin,
+                    banco=banco
+                )
+            
+            if not result.get('success', False):
+                flash(f'Erro ao carregar transações: {result.get("message", "Erro desconhecido")}', 'error')
+                return redirect(url_for('index'))
+            
+            # Obter transações e paginação
+            transactions = result.get('transactions', [])
+            pagination_info = result.get('pagination', {})
+            
+            # Filtrar por categoria se especificado
+            if categoria:
+                transactions = [t for t in transactions if t.get('categoria') == categoria]
+                # Atualizar informações de paginação
+                pagination_info['total_count'] = len(transactions)
+                pagination_info['total_pages'] = (len(transactions) + per_page - 1) // per_page
+            
+            # Obter categorias disponíveis para o filtro
+            available_categories = mongo_handler.get_categories()
+            
+            # Obter origens de cartão disponíveis
+            card_origins = mongo_handler.get_card_origins()
+            
+            # Obter bancos disponíveis
+            available_banks = mongo_handler.get_available_banks()
             
             return render_template('transactions.html',
-                                 local_transactions=local_transactions,
-                                 mongo_transactions=mongo_transactions,
+                                 transactions=transactions,
+                                 pagination=pagination_info,
+                                 available_categories=available_categories,
+                                 card_origins=card_origins,
+                                 available_banks=available_banks,
+                                 current_filters={
+                                     'page': page,
+                                     'per_page': per_page,
+                                     'keyword': keyword or '',
+                                     'start_date': start_date or '',
+                                     'end_date': end_date or '',
+                                     'payment_start_date': payment_start_date or '',
+                                     'payment_end_date': payment_end_date or '',
+                                     'card_origin': card_origin or '',
+                                     'banco': banco or '',
+                                     'categoria': categoria or ''
+                                 },
                                  mongo_connected=mongo_connected,
-                                 mongo_count=mongo_count,
                                  user=current_user)
         except Exception as e:
             flash(f'Erro ao carregar transações: {str(e)}', 'error')
@@ -700,7 +780,9 @@ def create_app():
                 start_date=start_date,
                 end_date=end_date,
                 card_origin=card_origin,
-                banco=banco
+                banco=banco,
+                payment_start_date=None,
+                payment_end_date=None
             )
             
             return jsonify(result)

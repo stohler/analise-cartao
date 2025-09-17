@@ -8,381 +8,272 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-list me-2"></i>Transações Salvas
+                    <i class="fas fa-list me-2"></i>Transações MongoDB
                 </h5>
                 <div>
-                    <span class="badge bg-primary me-2">Local: {{ local_transactions|length }}</span>
-                    {% if mongo_connected %}
-                    <span class="badge bg-success" id="mongo-count">MongoDB: {{ mongo_count }}</span>
-                    {% endif %}
+                    <span class="badge bg-success">Total: {{ pagination.total_count }}</span>
                 </div>
             </div>
             <div class="card-body">
-                <ul class="nav nav-tabs" id="transactionsTab" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="local-tab" data-bs-toggle="tab" data-bs-target="#local" type="button" role="tab">
-                            <i class="fas fa-hdd me-2"></i>Armazenamento Local ({{ local_transactions|length }})
-                        </button>
-                    </li>
-                    {% if mongo_connected %}
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="mongo-tab" data-bs-toggle="tab" data-bs-target="#mongo" type="button" role="tab">
-                            <i class="fas fa-database me-2"></i>MongoDB ({{ mongo_count }})
-                        </button>
-                    </li>
-                    {% endif %}
-                </ul>
-                <div class="tab-content" id="transactionsTabContent">
-                    <div class="tab-pane fade show active" id="local" role="tabpanel">
-                        {% if local_transactions %}
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <button class="btn btn-danger btn-sm" onclick="removeAllTransactions('local')">
-                                    <i class="fas fa-trash me-1"></i>Remover Todas
-                                </button>
+                <!-- Filtros -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <form method="GET" action="{{ url_for('view_transactions') }}" class="row g-3">
+                            <div class="col-md-2">
+                                <label for="keyword" class="form-label">Buscar</label>
+                                <input type="text" class="form-control" id="keyword" name="keyword" 
+                                       value="{{ current_filters.keyword }}" placeholder="Descrição...">
                             </div>
-                        </div>
-                        <div class="table-responsive mt-3">
-                            <table class="table table-striped table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Descrição</th>
-                                        <th>Valor</th>
-                                        <th>Categoria</th>
-                                        <th>Banco</th>
-                                        <th>Origem</th>
-                                        <th>Parcelado</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for trans in local_transactions %}
-                                    <tr>
-                                        <td>{{ trans.data }}</td>
-                                        <td>{{ trans.descricao }}</td>
-                                        <td>R$ {{ "%.2f"|format(trans.valor) }}</td>
-                                        <td>
-                                            <span class="badge bg-secondary category-badge">{{ trans.categoria }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-info">{{ trans.banco }}</span>
-                                        </td>
-                                        <td>{{ trans.origem_cartao or 'N/A' }}</td>
-                                        <td>
-                                            {% if trans.parcelado == 'Sim' %}
-                                                <span class="badge bg-warning">{{ trans.parcela_atual }}/{{ trans.parcela_total }}</span>
-                                            {% else %}
-                                                <span class="badge bg-success">Não</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-outline-danger btn-sm" 
-                                                    onclick="removeTransaction('{{ trans.transaction_hash }}', 'local')"
-                                                    title="Remover transação">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
+                            <div class="col-md-2">
+                                <label for="start_date" class="form-label">Data Início</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" 
+                                       value="{{ current_filters.start_date }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="end_date" class="form-label">Data Fim</label>
+                                <input type="date" class="form-control" id="end_date" name="end_date" 
+                                       value="{{ current_filters.end_date }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="payment_start_date" class="form-label">Pagamento Início</label>
+                                <input type="date" class="form-control" id="payment_start_date" name="payment_start_date" 
+                                       value="{{ current_filters.payment_start_date }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="payment_end_date" class="form-label">Pagamento Fim</label>
+                                <input type="date" class="form-control" id="payment_end_date" name="payment_end_date" 
+                                       value="{{ current_filters.payment_end_date }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="categoria" class="form-label">Categoria</label>
+                                <select class="form-select" id="categoria" name="categoria">
+                                    <option value="">Todas</option>
+                                    {% for cat in available_categories %}
+                                    <option value="{{ cat.nome }}" 
+                                            {% if current_filters.categoria == cat.nome %}selected{% endif %}>
+                                        {{ cat.nome_exibicao }}
+                                    </option>
                                     {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">Nenhuma transação local encontrada</h5>
-                            <p class="text-muted">Analise um PDF para começar a armazenar transações</p>
-                            <a href="{{ url_for('index') }}" class="btn btn-primary">
-                                <i class="fas fa-upload me-2"></i>Analisar PDF
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    {% if mongo_connected %}
-                    <div class="tab-pane fade" id="mongo" role="tabpanel">
-                        <!-- Filtros para MongoDB -->
-                        <div class="card mb-3">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros</h6>
+                                </select>
                             </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        <label for="keyword-filter" class="form-label">Palavra-chave</label>
-                                        <input type="text" class="form-control" id="keyword-filter" placeholder="Buscar na descrição...">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="start-date-filter" class="form-label">Data Início</label>
-                                        <input type="date" class="form-control" id="start-date-filter">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="end-date-filter" class="form-label">Data Fim</label>
-                                        <input type="date" class="form-control" id="end-date-filter">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="card-origin-filter" class="form-label">Origem do Cartão</label>
-                                        <select class="form-select" id="card-origin-filter">
-                                            <option value="">Todas</option>
-                                            <option value="Cartão Principal">Cartão Principal</option>
-                                            <option value="Cartão Adicional">Cartão Adicional</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="banco-filter" class="form-label">Banco</label>
-                                        <select class="form-select" id="banco-filter">
-                                            <option value="">Todos</option>
-                                            <option value="btg">BTG</option>
-                                            <option value="c6">C6</option>
-                                            <option value="nubank">Nubank</option>
-                                            <option value="inter">Inter</option>
-                                            <option value="itau">Itaú</option>
-                                            <option value="bradesco">Bradesco</option>
-                                            <option value="santander">Santander</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="per-page-filter" class="form-label">Por Página</label>
-                                        <select class="form-select" id="per-page-filter">
-                                            <option value="10">10</option>
-                                            <option value="20" selected>20</option>
-                                            <option value="50">50</option>
-                                            <option value="100">100</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-1 d-flex align-items-end">
-                                        <button class="btn btn-primary" onclick="applyFilters()">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="col-md-2">
+                                <label for="card_origin" class="form-label">Origem</label>
+                                <select class="form-select" id="card_origin" name="card_origin">
+                                    <option value="">Todas</option>
+                                    {% for origin in card_origins %}
+                                    <option value="{{ origin }}" 
+                                            {% if current_filters.card_origin == origin %}selected{% endif %}>
+                                        {{ origin }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                        </div>
-                        
-                        <!-- Controles de ação -->
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <button class="btn btn-danger btn-sm" onclick="removeAllTransactions('mongodb')">
-                                    <i class="fas fa-trash me-1"></i>Remover Todas
+                            <div class="col-md-2">
+                                <label for="banco" class="form-label">Banco</label>
+                                <select class="form-select" id="banco" name="banco">
+                                    <option value="">Todos</option>
+                                    {% for bank in available_banks %}
+                                    <option value="{{ bank }}" 
+                                            {% if current_filters.banco == bank %}selected{% endif %}>
+                                        {{ bank }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="per_page" class="form-label">Por Página</label>
+                                <select class="form-select" id="per_page" name="per_page">
+                                    <option value="20" {% if current_filters.per_page == 20 %}selected{% endif %}>20</option>
+                                    <option value="50" {% if current_filters.per_page == 50 %}selected{% endif %}>50</option>
+                                    <option value="100" {% if current_filters.per_page == 100 %}selected{% endif %}>100</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Filtrar
                                 </button>
+                                <a href="{{ url_for('view_transactions') }}" class="btn btn-secondary ms-2">
+                                    <i class="fas fa-refresh me-1"></i>Limpar Filtros
+                                </a>
                             </div>
-                            <div id="mongo-pagination-info" class="text-muted">
-                                <!-- Informações de paginação serão inseridas aqui -->
-                            </div>
-                        </div>
-                        
-                        <!-- Tabela de transações MongoDB -->
-                        <div class="table-responsive mt-3">
-                            <table class="table table-striped table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Descrição</th>
-                                        <th>Valor</th>
-                                        <th>Categoria</th>
-                                        <th>Banco</th>
-                                        <th>Origem</th>
-                                        <th>Parcelado</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="mongo-transactions-tbody">
-                                    <!-- Transações serão carregadas via JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <!-- Paginação -->
-                        <nav aria-label="Paginação MongoDB">
-                            <ul class="pagination justify-content-center" id="mongo-pagination">
-                                <!-- Botões de paginação serão inseridos aqui -->
-                            </ul>
-                        </nav>
+                        </form>
                     </div>
-                    {% endif %}
                 </div>
+
+                <!-- Tabela de Transações -->
+                {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Data Pagamento</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                                <th>Categoria</th>
+                                <th>Origem</th>
+                                <th>Banco</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr>
+                                <td>
+                                    {% if transaction.data %}
+                                        {% set date_str = transaction.data.split('T')[0] %}
+                                        {% set date_parts = date_str.split('-') %}
+                                        {% if date_parts|length == 3 %}
+                                            {{ date_parts[2] }}/{{ date_parts[1] }}/{{ date_parts[0] }}
+                                        {% else %}
+                                            {{ transaction.data }}
+                                        {% endif %}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if transaction.data_pagamento %}
+                                        {% set date_str = transaction.data_pagamento.split('T')[0] %}
+                                        {% set date_parts = date_str.split('-') %}
+                                        {% if date_parts|length == 3 %}
+                                            {{ date_parts[2] }}/{{ date_parts[1] }}/{{ date_parts[0] }}
+                                        {% else %}
+                                            {{ transaction.data_pagamento }}
+                                        {% endif %}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                                <td>{{ transaction.descricao }}</td>
+                                <td class="fw-bold">R$ {{ "%.2f"|format(transaction.valor) }}</td>
+                                <td>
+                                    <select class="form-select form-select-sm category-select" 
+                                            data-transaction-id="{{ transaction._id }}"
+                                            data-current-category="{{ transaction.categoria }}">
+                                        {% for cat in available_categories %}
+                                        <option value="{{ cat.nome }}" 
+                                                {% if transaction.categoria == cat.nome %}selected{% endif %}>
+                                            {{ cat.nome_exibicao }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>{{ transaction.origem_cartao }}</td>
+                                <td>{{ transaction.banco }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            onclick="removeTransaction('{{ transaction._id }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginação -->
+                {% if pagination.total_pages > 1 %}
+                <nav aria-label="Paginação de transações">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('view_transactions', page=pagination.prev_page, per_page=current_filters.per_page, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date, payment_start_date=current_filters.payment_start_date, payment_end_date=current_filters.payment_end_date, card_origin=current_filters.card_origin, banco=current_filters.banco, categoria=current_filters.categoria) }}">Anterior</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in range(1, pagination.total_pages + 1) %}
+                            {% if page_num == pagination.page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% elif page_num <= 3 or page_num > pagination.total_pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('view_transactions', page=page_num, per_page=current_filters.per_page, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date, payment_start_date=current_filters.payment_start_date, payment_end_date=current_filters.payment_end_date, card_origin=current_filters.card_origin, banco=current_filters.banco, categoria=current_filters.categoria) }}">{{ page_num }}</a>
+                            </li>
+                            {% elif page_num == 4 or page_num == pagination.total_pages - 3 %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('view_transactions', page=pagination.next_page, per_page=current_filters.per_page, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date, payment_start_date=current_filters.payment_start_date, payment_end_date=current_filters.payment_end_date, card_origin=current_filters.card_origin, banco=current_filters.banco, categoria=current_filters.categoria) }}">Próxima</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Nenhuma transação encontrada com os filtros aplicados.
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
 <script>
-let currentPage = 1;
-let currentFilters = {};
-
-// Função para obter data de 60 dias atrás
-function getDate60DaysAgo() {
-    const date = new Date();
-    date.setDate(date.getDate() - 60);
-    return date.toISOString().split('T')[0];
-}
-
-// Função para obter data de hoje
-function getTodayDate() {
-    return new Date().toISOString().split('T')[0];
-}
-
-// Carregar transações do MongoDB quando a aba for ativada
-document.getElementById('mongo-tab').addEventListener('click', function() {
-    // Definir filtros padrão dos últimos 60 dias
-    if (!document.getElementById('start-date-filter').value) {
-        document.getElementById('start-date-filter').value = getDate60DaysAgo();
-    }
-    if (!document.getElementById('end-date-filter').value) {
-        document.getElementById('end-date-filter').value = getTodayDate();
-    }
-    
-    loadMongoTransactions();
+// Função para atualizar categoria
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.category-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const transactionId = this.dataset.transactionId;
+            const newCategory = this.value;
+            const currentCategory = this.dataset.currentCategory;
+            
+            if (newCategory === currentCategory) {
+                return; // Não mudou
+            }
+            
+            // Confirmar mudança
+            if (!confirm(`Alterar categoria para "${newCategory}"?`)) {
+                this.value = currentCategory; // Reverter
+                return;
+            }
+            
+            // Fazer requisição
+            fetch('/update_transaction_category', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    transaction_hash: transactionId,
+                    new_category: newCategory
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.dataset.currentCategory = newCategory;
+                    // Mostrar feedback visual
+                    this.classList.add('border-success');
+                    setTimeout(() => {
+                        this.classList.remove('border-success');
+                    }, 2000);
+                } else {
+                    alert('Erro ao atualizar categoria: ' + data.message);
+                    this.value = currentCategory; // Reverter
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao atualizar categoria');
+                this.value = currentCategory; // Reverter
+            });
+        });
+    });
 });
 
-// Função para carregar transações do MongoDB
-function loadMongoTransactions(page = 1) {
-    const params = new URLSearchParams({
-        page: page,
-        per_page: document.getElementById('per-page-filter').value,
-        ...currentFilters
-    });
-    
-    fetch(`/api/transactions/mongodb?${params}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayMongoTransactions(data.transactions);
-                updatePagination(data.pagination);
-                currentPage = page;
-            } else {
-                showAlert('Erro ao carregar transações: ' + data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Erro:', error);
-            showAlert('Erro ao carregar transações', 'danger');
-        });
-}
-
-// Função para exibir transações do MongoDB
-function displayMongoTransactions(transactions) {
-    const tbody = document.getElementById('mongo-transactions-tbody');
-    
-    if (transactions.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center py-4">
-                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                    <br>Nenhuma transação encontrada
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    tbody.innerHTML = transactions.map(trans => `
-        <tr>
-            <td>${trans.data || 'N/A'}</td>
-            <td>${trans.descricao || 'N/A'}</td>
-            <td>R$ ${(trans.valor || 0).toFixed(2)}</td>
-            <td><span class="badge bg-secondary">${trans.categoria || 'outros'}</span></td>
-            <td><span class="badge bg-info">${trans.banco || 'N/A'}</span></td>
-            <td>${trans.origem_cartao || 'N/A'}</td>
-            <td>
-                ${trans.parcelado === 'Sim' 
-                    ? `<span class="badge bg-warning">${trans.parcela_atual}/${trans.parcela_total}</span>`
-                    : '<span class="badge bg-success">Não</span>'
-                }
-            </td>
-            <td>
-                <button class="btn btn-outline-danger btn-sm" 
-                        onclick="removeTransaction('${trans.transaction_hash}', 'mongodb')"
-                        title="Remover transação">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-// Função para atualizar paginação
-function updatePagination(pagination) {
-    const paginationEl = document.getElementById('mongo-pagination');
-    const infoEl = document.getElementById('mongo-pagination-info');
-    
-    // Atualizar informações
-    infoEl.innerHTML = `
-        Página ${pagination.page} de ${pagination.total_pages} 
-        (${pagination.total_count} transações)
-    `;
-    
-    // Atualizar contador na aba e no cabeçalho
-    const mongoTab = document.getElementById('mongo-tab');
-    const mongoCountBadge = document.getElementById('mongo-count');
-    if (mongoTab && mongoCountBadge) {
-        mongoTab.innerHTML = `<i class="fas fa-database me-2"></i>MongoDB (${pagination.total_count})`;
-        mongoCountBadge.innerHTML = `MongoDB: ${pagination.total_count}`;
-    }
-    
-    // Criar botões de paginação
-    let paginationHTML = '';
-    
-    // Botão anterior
-    if (pagination.has_prev) {
-        paginationHTML += `
-            <li class="page-item">
-                <a class="page-link" href="#" onclick="loadMongoTransactions(${pagination.prev_page})">
-                    <i class="fas fa-chevron-left"></i>
-                </a>
-            </li>
-        `;
-    }
-    
-    // Botões de página
-    const startPage = Math.max(1, pagination.page - 2);
-    const endPage = Math.min(pagination.total_pages, pagination.page + 2);
-    
-    for (let i = startPage; i <= endPage; i++) {
-        paginationHTML += `
-            <li class="page-item ${i === pagination.page ? 'active' : ''}">
-                <a class="page-link" href="#" onclick="loadMongoTransactions(${i})">${i}</a>
-            </li>
-        `;
-    }
-    
-    // Botão próximo
-    if (pagination.has_next) {
-        paginationHTML += `
-            <li class="page-item">
-                <a class="page-link" href="#" onclick="loadMongoTransactions(${pagination.next_page})">
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-            </li>
-        `;
-    }
-    
-    paginationEl.innerHTML = paginationHTML;
-}
-
-// Função para aplicar filtros
-function applyFilters() {
-    currentFilters = {
-        keyword: document.getElementById('keyword-filter').value || undefined,
-        start_date: document.getElementById('start-date-filter').value || undefined,
-        end_date: document.getElementById('end-date-filter').value || undefined,
-        card_origin: document.getElementById('card-origin-filter').value || undefined,
-        banco: document.getElementById('banco-filter').value || undefined
-    };
-    
-    // Remover valores vazios
-    Object.keys(currentFilters).forEach(key => {
-        if (!currentFilters[key]) {
-            delete currentFilters[key];
-        }
-    });
-    
-    loadMongoTransactions(1);
-}
-
-// Função para remover uma transação
-function removeTransaction(transactionHash, storageType) {
+// Função para remover transação
+function removeTransaction(transactionId) {
     if (!confirm('Tem certeza que deseja remover esta transação?')) {
         return;
     }
@@ -393,92 +284,23 @@ function removeTransaction(transactionHash, storageType) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            transaction_hash: transactionHash,
-            storage_type: storageType
+            transaction_hash: transactionId,
+            storage_type: 'mongodb'
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert(data.message, 'success');
-            
-            if (storageType === 'local') {
-                // Recarregar página para atualizar transações locais
-                location.reload();
-            } else {
-                // Recarregar transações do MongoDB
-                loadMongoTransactions(currentPage);
-            }
+            // Recarregar a página
+            window.location.reload();
         } else {
-            showAlert('Erro: ' + data.message, 'danger');
+            alert('Erro ao remover transação: ' + data.message);
         }
     })
     .catch(error => {
         console.error('Erro:', error);
-        showAlert('Erro ao remover transação', 'danger');
+        alert('Erro ao remover transação');
     });
-}
-
-// Função para remover todas as transações
-function removeAllTransactions(storageType) {
-    const message = storageType === 'local' 
-        ? 'Tem certeza que deseja remover TODAS as transações locais? Esta ação não pode ser desfeita!'
-        : 'Tem certeza que deseja remover TODAS as transações do MongoDB? Esta ação não pode ser desfeita!';
-    
-    if (!confirm(message)) {
-        return;
-    }
-    
-    fetch('/api/transactions/remove_all', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            storage_type: storageType
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert(data.message, 'success');
-            
-            if (storageType === 'local') {
-                // Recarregar página para atualizar transações locais
-                location.reload();
-            } else {
-                // Recarregar transações do MongoDB
-                loadMongoTransactions(1);
-            }
-        } else {
-            showAlert('Erro: ' + data.message, 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Erro:', error);
-        showAlert('Erro ao remover transações', 'danger');
-    });
-}
-
-// Função para mostrar alertas
-function showAlert(message, type) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    // Inserir no topo da página
-    const container = document.querySelector('.container-fluid');
-    container.insertBefore(alertDiv, container.firstChild);
-    
-    // Remover automaticamente após 5 segundos
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 5000);
 }
 </script>
 {% endblock %}

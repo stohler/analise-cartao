@@ -391,6 +391,24 @@ class MongoDBHandler:
             print(f"❌ Erro ao buscar origens de cartão: {e}")
             return []
     
+    def get_available_banks(self) -> List[str]:
+        """
+        Retorna lista de bancos disponíveis
+        
+        Returns:
+            List[str]: Lista de bancos únicos
+        """
+        if self.collection is None:
+            return []
+        
+        try:
+            # Buscar bancos únicos
+            banks = self.collection.distinct("banco")
+            return [bank for bank in banks if bank]  # Remove valores None/vazios
+        except Exception as e:
+            print(f"❌ Erro ao buscar bancos: {e}")
+            return []
+    
     def get_categories_by_month(self, months_back: int = 6, card_origin: str = None) -> Dict:
         """
         Retorna dados de categorias agrupadas por mês
@@ -1026,7 +1044,7 @@ class MongoDBHandler:
 
     def get_transactions_paginated(self, page: int = 1, per_page: int = 20, keyword: str = None, 
                                  start_date: str = None, end_date: str = None, card_origin: str = None, 
-                                 banco: str = None) -> Dict:
+                                 banco: str = None, payment_start_date: str = None, payment_end_date: str = None) -> Dict:
         """
         Retorna transações paginadas com filtros opcionais
         
@@ -1038,6 +1056,8 @@ class MongoDBHandler:
             end_date: Data de fim (formato YYYY-MM-DD ou DD/MM/YYYY)
             card_origin: Origem do cartão
             banco: Nome do banco
+            payment_start_date: Data de início do pagamento (formato YYYY-MM-DD)
+            payment_end_date: Data de fim do pagamento (formato YYYY-MM-DD)
             
         Returns:
             Dict: Resultado com transações e metadados de paginação
@@ -1054,17 +1074,27 @@ class MongoDBHandler:
                 query['descricao'] = {'$regex': keyword, '$options': 'i'}
             
             # Filtro por data - usar campo data_iso quando disponível
-            if start_date and end_date:
-                # Converter datas para datetime
-                start_datetime = datetime.fromisoformat(start_date)
-                end_datetime = datetime.fromisoformat(end_date)
-                query['data_iso'] = {'$gte': start_datetime, '$lte': end_datetime}
-            elif start_date:
-                start_datetime = datetime.fromisoformat(start_date)
-                query['data_iso'] = {'$gte': start_datetime}
-            elif end_date:
-                end_datetime = datetime.fromisoformat(end_date)
-                query['data_iso'] = {'$lte': end_datetime}
+            if start_date and end_date and start_date.strip() and end_date.strip():
+                try:
+                    # Converter datas para datetime
+                    start_datetime = datetime.fromisoformat(start_date)
+                    end_datetime = datetime.fromisoformat(end_date)
+                    query['data_iso'] = {'$gte': start_datetime, '$lte': end_datetime}
+                except ValueError:
+                    # Se falhar, ignorar filtro de data
+                    pass
+            elif start_date and start_date.strip():
+                try:
+                    start_datetime = datetime.fromisoformat(start_date)
+                    query['data_iso'] = {'$gte': start_datetime}
+                except ValueError:
+                    pass
+            elif end_date and end_date.strip():
+                try:
+                    end_datetime = datetime.fromisoformat(end_date)
+                    query['data_iso'] = {'$lte': end_datetime}
+                except ValueError:
+                    pass
             
             # Filtro por origem do cartão
             if card_origin:
@@ -1073,6 +1103,17 @@ class MongoDBHandler:
             # Filtro por banco
             if banco:
                 query['banco'] = banco
+            
+            # Filtro por data de pagamento
+            if payment_start_date and payment_end_date:
+                query['data_pagamento'] = {
+                    '$gte': payment_start_date,
+                    '$lte': payment_end_date
+                }
+            elif payment_start_date:
+                query['data_pagamento'] = {'$gte': payment_start_date}
+            elif payment_end_date:
+                query['data_pagamento'] = {'$lte': payment_end_date}
             
             # Calcular skip para paginação
             skip = (page - 1) * per_page
