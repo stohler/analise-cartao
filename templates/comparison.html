@@ -39,6 +39,54 @@
                     </div>
                 </div>
 
+                <!-- Gráfico de Categorias por Mês -->
+                {% if categories_data.success %}
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-chart-bar me-2"></i>Gastos por Categoria (Últimos 6 Meses)
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <!-- Controles do Gráfico -->
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="select-all-categories" checked>
+                                            <label class="form-check-label" for="select-all-categories">
+                                                <strong>Selecionar Todas</strong>
+                                            </label>
+                                        </div>
+                                        {% for category in categories_data.categories %}
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input category-checkbox" type="checkbox" 
+                                                   id="category-{{ category }}" value="{{ category }}" checked>
+                                            <label class="form-check-label" for="category-{{ category }}">
+                                                {{ category|title }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="toggleChartType()">
+                                            <i class="fas fa-chart-line" id="chart-type-icon"></i>
+                                            <span id="chart-type-text">Linha</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Canvas do Gráfico -->
+                                <div class="chart-container" style="position: relative; height: 400px;">
+                                    <canvas id="categoriesChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <h6>Dados Mensais:</h6>
                 <div class="table-responsive">
                     <table class="table table-striped">
@@ -78,23 +126,35 @@
                     <div class="col-md-6">
                         <h6>Por Categoria (6 meses):</h6>
                         <div class="list-group">
-                            {% for category, value in report.summary.by_category.items() %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ category|title }}
-                                <span class="badge bg-primary rounded-pill">R$ {{ "%.2f"|format(value) }}</span>
-                            </div>
-                            {% endfor %}
+                            {% if report.summary.by_category %}
+                                {% for category, value in report.summary.by_category.items() %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ category|title }}
+                                    <span class="badge bg-primary rounded-pill">R$ {{ "%.2f"|format(value) }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="list-group-item text-muted">
+                                    Nenhuma categoria encontrada
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="col-md-6">
                         <h6>Por Banco (6 meses):</h6>
                         <div class="list-group">
-                            {% for bank, count in report.summary.by_bank.items() %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ bank|title }}
-                                <span class="badge bg-secondary rounded-pill">{{ count }}</span>
-                            </div>
-                            {% endfor %}
+                            {% if report.summary.by_bank %}
+                                {% for bank, count in report.summary.by_bank.items() %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ bank|title }}
+                                    <span class="badge bg-secondary rounded-pill">{{ count }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="list-group-item text-muted">
+                                    Nenhum banco encontrado
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -102,4 +162,140 @@
         </div>
     </div>
 </div>
+
+{% if categories_data.success %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Dados do gráfico
+const categoriesData = {{ categories_data.data|tojson }};
+const monthsLabels = {{ categories_data.months_labels|tojson }};
+const categories = {{ categories_data.categories|tojson }};
+
+// Cores para as categorias
+const categoryColors = [
+    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+    '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384',
+    '#36A2EB', '#FFCE56', '#9966FF', '#FF9F40', '#C9CBCF'
+];
+
+let chart;
+let chartType = 'line';
+
+// Inicializar gráfico
+function initChart() {
+    const ctx = document.getElementById('categoriesChart').getContext('2d');
+    
+    const datasets = categories.map((category, index) => ({
+        label: category.charAt(0).toUpperCase() + category.slice(1),
+        data: categoriesData[category] || [],
+        borderColor: categoryColors[index % categoryColors.length],
+        backgroundColor: categoryColors[index % categoryColors.length] + '20',
+        fill: false,
+        tension: 0.1,
+        hidden: false
+    }));
+
+    chart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: monthsLabels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Gastos por Categoria por Mês'
+                },
+                legend: {
+                    display: false // Vamos usar checkboxes personalizados
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+// Alternar tipo de gráfico
+function toggleChartType() {
+    chartType = chartType === 'line' ? 'bar' : 'line';
+    const icon = document.getElementById('chart-type-icon');
+    const text = document.getElementById('chart-type-text');
+    
+    if (chartType === 'line') {
+        icon.className = 'fas fa-chart-line';
+        text.textContent = 'Linha';
+    } else {
+        icon.className = 'fas fa-chart-bar';
+        text.textContent = 'Barras';
+    }
+    
+    chart.destroy();
+    initChart();
+}
+
+// Controle de checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    initChart();
+    
+    // Selecionar/Deselecionar todas as categorias
+    document.getElementById('select-all-categories').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.category-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+            updateChart();
+        });
+    });
+    
+    // Controle individual de categorias
+    document.querySelectorAll('.category-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateChart();
+            updateSelectAllCheckbox();
+        });
+    });
+});
+
+// Atualizar gráfico baseado nas categorias selecionadas
+function updateChart() {
+    const selectedCategories = Array.from(document.querySelectorAll('.category-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+    
+    chart.data.datasets.forEach((dataset, index) => {
+        const category = categories[index];
+        dataset.hidden = !selectedCategories.includes(category);
+    });
+    
+    chart.update();
+}
+
+// Atualizar checkbox "Selecionar Todas"
+function updateSelectAllCheckbox() {
+    const allCheckboxes = document.querySelectorAll('.category-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.category-checkbox:checked');
+    const selectAllCheckbox = document.getElementById('select-all-categories');
+    
+    selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+    selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+}
+</script>
+{% endif %}
+
 {% endblock %}

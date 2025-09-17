@@ -34,12 +34,12 @@ class MonthlyComparison:
         transactions = []
         
         # Tentar MongoDB primeiro
-        if self.mongo_handler and self.mongo_handler.collection:
+        if self.mongo_handler and self.mongo_handler.collection is not None:
             try:
                 query = {
-                    "data": {
-                        "$gte": start_date.strftime("%d/%m/%Y"),
-                        "$lte": end_date.strftime("%d/%m/%Y")
+                    "data_pagamento": {
+                        "$gte": start_date.strftime('%Y-%m-%d'),
+                        "$lte": end_date.strftime('%Y-%m-%d')
                     }
                 }
                 
@@ -141,11 +141,12 @@ class MonthlyComparison:
         
         for trans in transactions:
             # Valor total
-            stats['total_value'] += trans.get('valor', 0)
+            valor = float(trans.get('valor', 0))
+            stats['total_value'] += valor
             
             # Por categoria
             category = trans.get('categoria', 'outros')
-            stats['by_category'][category] += trans.get('valor', 0)
+            stats['by_category'][category] += valor
             
             # Por banco
             bank = trans.get('banco', 'desconhecido')
@@ -158,7 +159,7 @@ class MonthlyComparison:
             # Merchants (primeiras palavras da descrição)
             description = trans.get('descricao', '')
             merchant = description.split()[0] if description else 'Desconhecido'
-            stats['merchants'][merchant] += trans.get('valor', 0)
+            stats['merchants'][merchant] += valor
         
         # Calcular média
         stats['average_transaction'] = stats['total_value'] / stats['total_transactions'] if stats['total_transactions'] > 0 else 0

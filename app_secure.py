@@ -526,7 +526,13 @@ def create_app():
             # Gerar relatório comparativo
             report = comparator.generate_comparison_report(card_origin)
             
-            return render_template('comparison.html', report=report, user=current_user)
+            # Obter dados de categorias por mês para o gráfico
+            categories_data = mongo_handler.get_categories_by_month(months_back=6, card_origin=card_origin)
+            
+            return render_template('comparison.html', 
+                                 report=report, 
+                                 categories_data=categories_data,
+                                 user=current_user)
         except Exception as e:
             flash(f'Erro ao gerar comparativo: {str(e)}', 'error')
             return redirect(url_for('index'))

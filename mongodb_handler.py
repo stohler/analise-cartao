@@ -391,6 +391,118 @@ class MongoDBHandler:
             print(f"❌ Erro ao buscar origens de cartão: {e}")
             return []
     
+    def get_categories_by_month(self, months_back: int = 6, card_origin: str = None) -> Dict:
+        """
+        Retorna dados de categorias agrupadas por mês
+        
+        Args:
+            months_back: Número de meses para buscar (padrão: 6)
+            card_origin: Origem do cartão (opcional)
+            
+        Returns:
+            Dict: Dados de categorias por mês
+        """
+        if self.collection is None:
+            return {
+                'success': False,
+                'message': 'MongoDB não conectado',
+                'data': {},
+                'categories': [],
+                'months': []
+            }
+        
+        try:
+            from datetime import datetime, timedelta
+            import calendar
+            
+            # Calcular período
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=months_back * 30)
+            
+            # Query base
+            query = {
+                "data_pagamento": {
+                    "$gte": start_date.strftime('%Y-%m-%d'),
+                    "$lte": end_date.strftime('%Y-%m-%d')
+                }
+            }
+            
+            if card_origin:
+                query["origem_cartao"] = card_origin
+            
+            # Buscar transações
+            transactions = list(self.collection.find(query))
+            
+            # Estrutura para armazenar dados
+            months_data = {}
+            all_categories = set()
+            
+            # Processar cada transação
+            for transaction in transactions:
+                data_pagamento = transaction.get('data_pagamento', '')
+                if not data_pagamento:
+                    continue
+                
+                # Extrair ano-mês da data de pagamento
+                try:
+                    if 'T' in data_pagamento:
+                        date_str = data_pagamento.split('T')[0]
+                    else:
+                        date_str = data_pagamento
+                    
+                    year_month = date_str[:7]  # YYYY-MM
+                    category = transaction.get('categoria', 'outros')
+                    valor = float(transaction.get('valor', 0))
+                    
+                    all_categories.add(category)
+                    
+                    if year_month not in months_data:
+                        months_data[year_month] = {}
+                    
+                    if category not in months_data[year_month]:
+                        months_data[year_month][category] = 0
+                    
+                    months_data[year_month][category] += valor
+                    
+                except Exception as e:
+                    print(f"Erro ao processar transação: {e}")
+                    continue
+            
+            # Gerar lista de meses ordenados
+            months = sorted(months_data.keys())
+            
+            # Garantir que todas as categorias tenham dados para todos os meses
+            for month in months:
+                for category in all_categories:
+                    if category not in months_data[month]:
+                        months_data[month][category] = 0
+            
+            # Converter para formato adequado para gráficos
+            chart_data = {}
+            for category in sorted(all_categories):
+                chart_data[category] = []
+                for month in months:
+                    chart_data[category].append(months_data[month].get(category, 0))
+            
+            return {
+                'success': True,
+                'data': chart_data,
+                'categories': sorted(list(all_categories)),
+                'months': months,
+                'months_labels': [f"{month.split('-')[1]}/{month.split('-')[0]}" for month in months],
+                'total_months': len(months)
+            }
+            
+        except Exception as e:
+            print(f"❌ Erro ao buscar categorias por mês: {e}")
+            return {
+                'success': False,
+                'message': f'Erro ao buscar dados: {str(e)}',
+                'data': {},
+                'categories': [],
+                'months': []
+            }
+    
     def get_monthly_statistics(self, year: int, month: int, card_origin: str = None) -> Dict:
         """
         Retorna estatísticas mensais
