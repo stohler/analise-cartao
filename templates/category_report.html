@@ -179,6 +179,7 @@
                                                     <div class="card">
                                                         <div class="card-header">
                                                             <h6 class="mb-0">Transações da categoria: {{ category_name|title }}</h6>
+                                                            <small class="text-muted">Ordenadas por valor (maior para menor)</small>
                                                         </div>
                                                         <div class="card-body">
                                                             <div class="table-responsive">
@@ -187,17 +188,29 @@
                                                                         <tr>
                                                                             <th>Data</th>
                                                                             <th>Descrição</th>
-                                                                            <th>Valor</th>
+                                                                            <th>Valor <i class="fas fa-sort-amount-down text-primary"></i></th>
                                                                             <th>Origem</th>
                                                                             <th>Banco</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
-                                                                        {% for transaction in category_data.transactions %}
+                                                                        {% for transaction in category_data.transactions|sort(attribute='valor', reverse=true) %}
                                                                         <tr>
-                                                                            <td>{{ transaction.data_pagamento }}</td>
+                                                                            <td>
+                                                                                {% if transaction.data %}
+                                                                                    {% set date_str = transaction.data.split('T')[0] %}
+                                                                                    {% set date_parts = date_str.split('-') %}
+                                                                                    {% if date_parts|length == 3 %}
+                                                                                        {{ date_parts[2] }}/{{ date_parts[1] }}/{{ date_parts[0] }}
+                                                                                    {% else %}
+                                                                                        {{ transaction.data }}
+                                                                                    {% endif %}
+                                                                                {% else %}
+                                                                                    N/A
+                                                                                {% endif %}
+                                                                            </td>
                                                                             <td>{{ transaction.descricao }}</td>
-                                                                            <td>R$ {{ "%.2f"|format(transaction.valor) }}</td>
+                                                                            <td class="fw-bold">R$ {{ "%.2f"|format(transaction.valor) }}</td>
                                                                             <td>{{ transaction.origem_cartao }}</td>
                                                                             <td>{{ transaction.banco }}</td>
                                                                         </tr>
