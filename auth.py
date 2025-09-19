@@ -8,14 +8,17 @@ Blueprint de autenticação
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from forms import LoginForm, RegisterForm, ChangePasswordForm, ForgotPasswordForm
-from models import UserManager
+from mongodb_user_manager import MongoDBUserManager
 import secrets
 import string
+import os
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
-# Instância global do gerenciador de usuários
-user_manager = UserManager()
+# Instância global do gerenciador de usuários MongoDB
+mongo_uri = os.environ.get('MONGODB_URI', 
+    "mongodb+srv://paulostohler_db_user:nO1Jn8huiAh7h3cY@cluster0.d1b6nys.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+user_manager = MongoDBUserManager(mongo_uri)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -142,12 +145,141 @@ def forgot_password():
 @login_required
 def list_users():
     """Lista todos os usuários (apenas para admin)"""
-    if current_user.username != 'admin':
+    if not current_user.is_admin:
         flash('Acesso negado.', 'error')
         return redirect(url_for('index'))
     
     users = user_manager.get_all_users()
     return render_template('auth/users.html', users=users)
+
+@auth_bp.route('/users/create', methods=['GET', 'POST'])
+@login_required
+def create_user():
+    """Cria novo usuário (apenas para admin)"""
+    if not current_user.is_admin:
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '').strip()
+        is_admin = request.form.get('is_admin') == 'on'
+        
+        if not username or not email or not password:
+            flash('Todos os campos são obrigatórios.', 'error')
+            return redirect(url_for('auth.create_user'))
+        
+        result = user_manager.create_user(username, email, password, is_admin)
+        
+        if result['success']:
+            flash(f'Usuário {username} criado com sucesso!', 'success')
+        else:
+            flash(f'Erro ao criar usuário: {result["message"]}', 'error')
+        
+        return redirect(url_for('auth.list_users'))
+    
+    return render_template('auth/create_user.html')
+
+@auth_bp.route('/users/<user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_user(user_id):
+    """Edita usuário (apenas para admin)"""
+    if not current_user.is_admin:
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('index'))
+    
+    user = user_manager.get_user_by_id(user_id)
+    if not user:
+        flash('Usuário não encontrado.', 'error')
+        return redirect(url_for('auth.list_users'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        is_active = request.form.get('is_active') == 'on'
+        is_admin = request.form.get('is_admin') == 'on'
+        
+        if not username or not email:
+            flash('Username e email são obrigatórios.', 'error')
+            return redirect(url_for('auth.edit_user', user_id=user_id))
+        
+        result = user_manager.update_user(user_id, 
+                                        username=username, 
+                                        email=email, 
+                                        is_active=is_active, 
+                                        is_admin=is_admin)
+        
+        if result['success']:
+            flash(f'Usuário {username} atualizado com sucesso!', 'success')
+        else:
+            flash(f'Erro ao atualizar usuário: {result["message"]}', 'error')
+        
+        return redirect(url_for('auth.list_users'))
+    
+    return render_template('auth/edit_user.html', user=user)
+
+@auth_bp.route('/users/<user_id>/change-password', methods=['GET', 'POST'])
+@login_required
+def change_user_password(user_id):
+    """Altera senha de usuário (apenas para admin)"""
+    if not current_user.is_admin:
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('index'))
+    
+    user = user_manager.get_user_by_id(user_id)
+    if not user:
+        flash('Usuário não encontrado.', 'error')
+        return redirect(url_for('auth.list_users'))
+    
+    if request.method == 'POST':
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+        
+        if not new_password or not confirm_password:
+            flash('Todos os campos são obrigatórios.', 'error')
+            return redirect(url_for('auth.change_user_password', user_id=user_id))
+        
+        if new_password != confirm_password:
+            flash('As senhas não coincidem.', 'error')
+            return redirect(url_for('auth.change_user_password', user_id=user_id))
+        
+        if len(new_password) < 6:
+            flash('A senha deve ter pelo menos 6 caracteres.', 'error')
+            return redirect(url_for('auth.change_user_password', user_id=user_id))
+        
+        result = user_manager.update_password(user_id, new_password)
+        
+        if result['success']:
+            flash(f'Senha do usuário {user.username} alterada com sucesso!', 'success')
+        else:
+            flash(f'Erro ao alterar senha: {result["message"]}', 'error')
+        
+        return redirect(url_for('auth.list_users'))
+    
+    return render_template('auth/change_user_password.html', user=user)
+
+@auth_bp.route('/users/<user_id>/delete', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    """Remove usuário (apenas para admin)"""
+    if not current_user.is_admin:
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('index'))
+    
+    user = user_manager.get_user_by_id(user_id)
+    if not user:
+        flash('Usuário não encontrado.', 'error')
+        return redirect(url_for('auth.list_users'))
+    
+    result = user_manager.delete_user(user_id)
+    
+    if result['success']:
+        flash(f'Usuário {user.username} removido com sucesso!', 'success')
+    else:
+        flash(f'Erro ao remover usuário: {result["message"]}', 'error')
+    
+    return redirect(url_for('auth.list_users'))
 
 def get_user_manager():
     """Retorna a instância do gerenciador de usuários"""

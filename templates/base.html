@@ -107,7 +107,7 @@
                             <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
                                 <i class="fas fa-key me-2"></i>Alterar Senha
                             </a></li>
-                            {% if current_user.username == 'admin' %}
+                            {% if current_user.is_admin %}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.list_users') }}">
                                 <i class="fas fa-users me-2"></i>Gerenciar Usuários

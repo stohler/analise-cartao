@@ -437,12 +437,23 @@ class MongoDBHandler:
             end_date = datetime.now()
             start_date = end_date - timedelta(days=months_back * 30)
             
-            # Query base
+            # Query base - buscar transações que tenham data_pagamento OU data
             query = {
-                "data_pagamento": {
-                    "$gte": start_date.strftime('%Y-%m-%d'),
-                    "$lte": end_date.strftime('%Y-%m-%d')
-                }
+                "$or": [
+                    {
+                        "data_pagamento": {
+                            "$gte": start_date.strftime('%Y-%m-%d'),
+                            "$lte": end_date.strftime('%Y-%m-%d')
+                        }
+                    },
+                    {
+                        "data": {
+                            "$exists": True,
+                            "$ne": None,
+                            "$ne": ""
+                        }
+                    }
+                ]
             }
             
             if card_origin:
@@ -457,13 +468,21 @@ class MongoDBHandler:
             
             # Processar cada transação
             for transaction in transactions:
+                # Usar data_pagamento se disponível, senão usar data como fallback
                 data_pagamento = transaction.get('data_pagamento', '')
                 if not data_pagamento:
-                    continue
+                    # Fallback para campo 'data' se data_pagamento não estiver disponível
+                    data_pagamento = transaction.get('data', '')
+                    if not data_pagamento:
+                        continue
                 
                 # Extrair ano-mês da data de pagamento
                 try:
-                    if 'T' in data_pagamento:
+                    # Se for formato DD/MM/YYYY, converter para YYYY-MM-DD
+                    if '/' in data_pagamento and len(data_pagamento.split('/')) == 3:
+                        day, month, year = data_pagamento.split('/')
+                        date_str = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                    elif 'T' in data_pagamento:
                         date_str = data_pagamento.split('T')[0]
                     else:
                         date_str = data_pagamento

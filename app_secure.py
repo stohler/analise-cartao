@@ -67,9 +67,13 @@ def create_app():
     # Configurar user loader
     user_manager = get_user_manager()
     
+    # Conectar ao MongoDB para usuários
+    if not user_manager.connect():
+        print("❌ Falha na conexão com MongoDB para usuários")
+    
     @login_manager.user_loader
     def load_user(user_id):
-        return user_manager.get_user(user_id)
+        return user_manager.get_user_by_id(user_id)
     
     # Registrar blueprints
     app.register_blueprint(auth_bp)
