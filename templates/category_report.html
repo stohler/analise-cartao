@@ -180,6 +180,14 @@
                                                         <div class="card-header">
                                                             <h6 class="mb-0">Transações da categoria: {{ category_name|title }}</h6>
                                                             <small class="text-muted">Ordenadas por valor (maior para menor)</small>
+                                                            <div class="mt-2">
+                                                                <span class="badge bg-warning text-dark me-2">
+                                                                    <i class="fas fa-info-circle me-1"></i>Linhas amarelas: 80% do valor total
+                                                                </span>
+                                                                <span class="badge bg-primary me-2">
+                                                                    <i class="fas fa-calculator me-1"></i>Saldo: soma acumulada
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                         <div class="card-body">
                                                             <div class="table-responsive">
@@ -189,13 +197,20 @@
                                                                             <th>Data</th>
                                                                             <th>Descrição</th>
                                                                             <th>Valor <i class="fas fa-sort-amount-down text-primary"></i></th>
+                                                                            <th>Saldo Acumulado</th>
                                                                             <th>Origem</th>
                                                                             <th>Banco</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
-                                                                        {% for transaction in category_data.transactions|sort(attribute='valor', reverse=true) %}
-                                                                        <tr>
+                                                                        {% set sorted_transactions = category_data.transactions|sort(attribute='valor', reverse=true) %}
+                                                                        {% set total_category_value = category_data.total_amount %}
+                                                                        {% set threshold_80_percent = total_category_value * 0.8 %}
+                                                                        
+                                                                        {% for transaction in sorted_transactions %}
+                                                                        {% set current_sum = sorted_transactions[:loop.index]|sum(attribute='valor') %}
+                                                                        {% set is_above_80_percent = current_sum <= threshold_80_percent %}
+                                                                        <tr class="{% if is_above_80_percent %}table-warning{% endif %}">
                                                                             <td>
                                                                                 {% if transaction.data %}
                                                                                     {% set date_str = transaction.data.split('T')[0] %}
@@ -211,11 +226,28 @@
                                                                             </td>
                                                                             <td>{{ transaction.descricao }}</td>
                                                                             <td class="fw-bold">R$ {{ "%.2f"|format(transaction.valor) }}</td>
+                                                                            <td class="fw-bold text-primary">R$ {{ "%.2f"|format(current_sum) }}</td>
                                                                             <td>{{ transaction.origem_cartao }}</td>
                                                                             <td>{{ transaction.banco }}</td>
                                                                         </tr>
                                                                         {% endfor %}
                                                                     </tbody>
+                                                                    <tfoot>
+                                                                        <tr class="table-info">
+                                                                            <td colspan="3" class="text-end fw-bold">
+                                                                                <i class="fas fa-calculator me-1"></i>Total da Categoria:
+                                                                            </td>
+                                                                            <td class="fw-bold">R$ {{ "%.2f"|format(total_category_value) }}</td>
+                                                                            <td colspan="2"></td>
+                                                                        </tr>
+                                                                        <tr class="table-warning">
+                                                                            <td colspan="3" class="text-end fw-bold">
+                                                                                <i class="fas fa-chart-line me-1"></i>80% do Total:
+                                                                            </td>
+                                                                            <td class="fw-bold">R$ {{ "%.2f"|format(threshold_80_percent) }}</td>
+                                                                            <td colspan="2"></td>
+                                                                        </tr>
+                                                                    </tfoot>
                                                                 </table>
                                                             </div>
                                                         </div>
