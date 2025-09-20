@@ -613,9 +613,13 @@ def create_app():
             # Obter dados de categorias por mês para o gráfico
             categories_data = mongo_handler.get_categories_by_month(months_back=6, card_origin=card_origin)
             
+            # Obter dados de parcelamentos futuros
+            installments_data = mongo_handler.get_future_installments(months_ahead=6)
+            
             return render_template('comparison.html', 
                                  report=report, 
                                  categories_data=categories_data,
+                                 installments_data=installments_data,
                                  user=current_user)
         except Exception as e:
             flash(f'Erro ao gerar comparativo: {str(e)}', 'error')

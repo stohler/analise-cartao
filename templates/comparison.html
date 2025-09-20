@@ -298,4 +298,125 @@ function updateSelectAllCheckbox() {
 </script>
 {% endif %}
 
+<!-- Tabela de Parcelamentos Futuros -->
+{% if installments_data.success %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>Parcelamentos Futuros (Próximos 6 Meses)
+                </h6>
+                <small class="text-muted">
+                    Baseado na data de pagamento das transações parceladas
+                </small>
+            </div>
+            <div class="card-body">
+                {% if installments_data.total_installments > 0 %}
+                <!-- Resumo -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h5 class="text-primary">{{ installments_data.total_installments }}</h5>
+                            <small class="text-muted">Total de Parcelas</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h5 class="text-success">R$ {{ "%.2f"|format(installments_data.total_value) }}</h5>
+                            <small class="text-muted">Valor Total</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h5 class="text-info">R$ {{ "%.2f"|format(installments_data.total_value / 6) }}</h5>
+                            <small class="text-muted">Média Mensal</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Parcelamentos -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Item</th>
+                                {% for month in installments_data.months %}
+                                <th class="text-center">{{ month.name.split()[0][:3] }}/{{ month.year }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Agrupar itens únicos -->
+                            {% set unique_items = {} %}
+                            {% for month_key, installments in installments_data.data.items() %}
+                                {% for installment in installments %}
+                                    {% set item_key = installment.description %}
+                                    {% if item_key not in unique_items %}
+                                        {% set _ = unique_items.update({item_key: {}}) %}
+                                    {% endif %}
+                                    {% set _ = unique_items[item_key].update({month_key: installment}) %}
+                                {% endfor %}
+                            {% endfor %}
+
+                            {% for item_description, months_data in unique_items.items() %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item_description[:50] }}{% if item_description|length > 50 %}...{% endif %}</strong>
+                                    {% set first_installment = months_data.values()|list|first %}
+                                    {% if first_installment %}
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-credit-card me-1"></i>{{ first_installment.origem_cartao }}
+                                        <i class="fas fa-university ms-2 me-1"></i>{{ first_installment.banco|title }}
+                                        <i class="fas fa-tag ms-2 me-1"></i>{{ first_installment.categoria|title }}
+                                    </small>
+                                    {% endif %}
+                                </td>
+                                {% for month in installments_data.months %}
+                                <td class="text-center">
+                                    {% if month.key in months_data %}
+                                    {% set installment = months_data[month.key] %}
+                                    <span class="badge bg-primary">
+                                        {{ installment.installment_number }}/{{ installment.total_installments }}
+                                    </span>
+                                    <br>
+                                    <strong class="text-success">R$ {{ "%.2f"|format(installment.value) }}</strong>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-info">
+                            <tr>
+                                <th>Total por Mês</th>
+                                {% for month in installments_data.months %}
+                                <th class="text-center">
+                                    {% if month.key in installments_data.total_by_month %}
+                                    <strong class="text-primary">R$ {{ "%.2f"|format(installments_data.total_by_month[month.key]) }}</strong>
+                                    {% else %}
+                                    <span class="text-muted">R$ 0,00</span>
+                                    {% endif %}
+                                </th>
+                                {% endfor %}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nenhum parcelamento futuro encontrado</h5>
+                    <p class="text-muted">Não há parcelas pendentes para os próximos 6 meses.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

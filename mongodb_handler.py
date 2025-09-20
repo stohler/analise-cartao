@@ -1473,6 +1473,152 @@ class MongoDBHandler:
         except Exception as e:
             return {'success': False, 'message': f'Erro ao obter estatísticas: {str(e)}'}
 
+    def get_future_installments(self, months_ahead: int = 6) -> Dict:
+        """
+        Busca parcelamentos futuros baseado na data de pagamento
+        
+        Args:
+            months_ahead: Número de meses futuros para projetar
+            
+        Returns:
+            Dict com dados dos parcelamentos futuros
+        """
+        try:
+            if self.client is None or self.collection is None:
+                return {
+                    'success': False,
+                    'message': 'MongoDB não conectado',
+                    'data': {},
+                    'months': [],
+                    'total_by_month': {}
+                }
+            
+            from datetime import datetime, timedelta
+            import calendar
+            
+            # Data atual
+            now = datetime.now()
+            
+            # Calcular meses futuros
+            future_months = []
+            for i in range(months_ahead):
+                # Calcular o mês futuro
+                future_date = now + timedelta(days=30 * i)
+                month_key = future_date.strftime('%Y-%m')
+                month_name = f"{calendar.month_name[future_date.month]} {future_date.year}"
+                future_months.append({
+                    'key': month_key,
+                    'name': month_name,
+                    'year': future_date.year,
+                    'month': future_date.month
+                })
+            
+            # Buscar transações parceladas que ainda têm parcelas futuras
+            # E que foram pagas no mês atual
+            current_month = now.strftime('%Y-%m')
+            
+            query = {
+                'parcelado': 'Sim',
+                'parcela_atual': {'$exists': True},
+                'parcela_total': {'$exists': True},
+                '$expr': {'$lt': ['$parcela_atual', '$parcela_total']},
+                '$or': [
+                    {
+                        'data_pagamento': {
+                            '$regex': f'^{current_month}'
+                        }
+                    },
+                    {
+                        'data': {
+                            '$regex': f'/{now.month:02d}/{now.year}$'
+                        }
+                    }
+                ]
+            }
+            
+            transactions = list(self.collection.find(query))
+            
+            # Processar parcelamentos futuros
+            installments_data = {}
+            total_by_month = {}
+            
+            for transaction in transactions:
+                try:
+                    # Extrair informações da parcela
+                    current_installment = transaction.get('parcela_atual', 1)
+                    total_installments = transaction.get('parcela_total', 1)
+                    installment_value = transaction.get('valor', 0)
+                    description = transaction.get('descricao', '')
+                    
+                    # Data de pagamento base
+                    data_pagamento = transaction.get('data_pagamento', transaction.get('data', ''))
+                    
+                    if not data_pagamento:
+                        continue
+                    
+                    # Converter data de pagamento
+                    if '/' in data_pagamento:
+                        # Formato DD/MM/YYYY
+                        day, month, year = data_pagamento.split('/')
+                        base_date = datetime(int(year), int(month), int(day))
+                    elif 'T' in data_pagamento:
+                        # Formato ISO
+                        base_date = datetime.fromisoformat(data_pagamento.split('T')[0])
+                    else:
+                        # Formato YYYY-MM-DD
+                        base_date = datetime.fromisoformat(data_pagamento)
+                    
+                    # Calcular parcelas futuras
+                    remaining_installments = total_installments - current_installment
+                    
+                    for i in range(1, remaining_installments + 1):
+                        # Calcular data da próxima parcela
+                        future_date = base_date + timedelta(days=30 * i)
+                        month_key = future_date.strftime('%Y-%m')
+                        
+                        # Verificar se está dentro do período de projeção
+                        if month_key in [m['key'] for m in future_months]:
+                            # Adicionar aos dados
+                            if month_key not in installments_data:
+                                installments_data[month_key] = []
+                                total_by_month[month_key] = 0
+                            
+                            installment_info = {
+                                'description': description,
+                                'value': installment_value,
+                                'installment_number': current_installment + i,
+                                'total_installments': total_installments,
+                                'banco': transaction.get('banco', ''),
+                                'categoria': transaction.get('categoria', ''),
+                                'origem_cartao': transaction.get('origem_cartao', '')
+                            }
+                            
+                            installments_data[month_key].append(installment_info)
+                            total_by_month[month_key] += installment_value
+                
+                except Exception as e:
+                    print(f"❌ Erro ao processar parcela: {e}")
+                    continue
+            
+            return {
+                'success': True,
+                'data': installments_data,
+                'months': future_months,
+                'total_by_month': total_by_month,
+                'total_installments': sum(len(installments) for installments in installments_data.values()),
+                'total_value': sum(total_by_month.values())
+            }
+            
+        except Exception as e:
+            print(f"❌ Erro ao buscar parcelamentos futuros: {e}")
+            return {
+                'success': False,
+                'message': f'Erro ao buscar dados: {str(e)}',
+                'data': {},
+                'months': [],
+                'total_by_month': {}
+            }
+
 # Exemplo de uso
 if __name__ == "__main__":
     # String de conexão fornecida pelo usuário
