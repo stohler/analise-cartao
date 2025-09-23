@@ -284,6 +284,35 @@ jobs:
           echo '✅ Ambiente configurado'
         "
     
+    - name: 🔧 Corrigir permissões Docker
+      run: |
+        echo "🔧 Corrigindo permissões do Docker..."
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+          # Adicionar usuário ao grupo docker se necessário
+          if ! groups \$USER | grep -q '\bdocker\b'; then
+            echo '📝 Adicionando usuário ao grupo docker...'
+            sudo usermod -aG docker \$USER
+            echo '⚠️ Usuário adicionado ao grupo docker'
+          fi
+          
+          # Verificar se o Docker daemon está rodando
+          if ! docker info >/dev/null 2>&1; then
+            echo '🚀 Iniciando Docker daemon...'
+            sudo systemctl start docker
+            sudo systemctl enable docker
+          fi
+          
+          # Verificar permissões do socket
+          if [ -S /var/run/docker.sock ]; then
+            echo '🔍 Verificando permissões do socket Docker...'
+            ls -la /var/run/docker.sock
+            # Corrigir permissões se necessário
+            sudo chmod 666 /var/run/docker.sock
+          fi
+          
+          echo '✅ Permissões Docker verificadas'
+        "
+
     - name: 🐳 Otimizar Docker para e2-micro
       run: |
         echo "🐳 Otimizando configuração Docker..."
@@ -293,8 +322,6 @@ jobs:
           
           # Criar docker-compose otimizado para e2-micro
           cat > docker-compose.yml << 'EOF'
-        version: '3.8'
-        
         services:
           web:
             build: .
@@ -438,6 +465,19 @@ jobs:
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
           PROJECT_DIR=/home/github-actions/analise-cartao
           cd \$PROJECT_DIR
+          
+          # Verificar se Docker está funcionando
+          echo '🔍 Verificando Docker...'
+          if ! docker info >/dev/null 2>&1; then
+            echo '❌ Docker não está funcionando, tentando corrigir...'
+            sudo systemctl restart docker
+            sleep 5
+            if ! docker info >/dev/null 2>&1; then
+              echo '❌ Docker ainda não está funcionando'
+              exit 1
+            fi
+          fi
+          echo '✅ Docker funcionando corretamente'
           
           # Limpar imagens antigas para economizar espaço
           docker system prune -f
