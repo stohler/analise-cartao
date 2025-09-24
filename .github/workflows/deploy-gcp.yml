@@ -488,7 +488,7 @@ jobs:
                       sudo chown -R github-actions:github-actions ssl/
                   fi
               else
-                  echo "❌ Domínio inválido (sem ponto): $DOMAIN"
+                  echo "❌ Domínio inválido sem ponto: $DOMAIN"
                   echo "🔐 Criando certificado auto-assinado..."
                   mkdir -p ssl
                   sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/key.pem -out ssl/cert.pem -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=localhost"
@@ -587,7 +587,7 @@ jobs:
           echo ''
           echo '🌐 Acesso:'
           echo '  HTTP:  http://${{ secrets.GCP_VM_IP }}'
-          echo '  HTTPS: https://${{ secrets.GCP_VM_IP }} (certificado auto-assinado)'
+          echo '  HTTPS: https://${{ secrets.GCP_VM_IP }} - certificado auto-assinado'
           echo '  Login: admin / admin123'
           echo ''
           echo '✅ Deploy realizado com sucesso!'
