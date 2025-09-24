@@ -70,6 +70,14 @@ Após o deploy bem-sucedido:
    sudo certbot logs
    ```
 
+### Erros comuns corrigidos
+
+- ✅ **Domínio vazio/nulo**: Script detecta e usa certificado auto-assinado
+- ✅ **Domínio inválido**: Validação de formato (deve conter ponto)
+- ✅ **Crontab não encontrado**: Instalação automática do cron
+- ✅ **Nginx não para**: Tratamento de erro com `2>/dev/null || true`
+- ✅ **Teste antes de obter**: Usa `--dry-run` para validar primeiro
+
 ### Renovação automática
 
 O certificado é renovado automaticamente via cron:

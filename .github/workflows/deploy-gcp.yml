@@ -443,32 +443,68 @@ jobs:
             sudo apt install -y certbot python3-certbot-nginx
         fi
         
-        # Verificar se há domínio configurado
-        if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "" ]; then
+        # Verificar se há domínio configurado e válido
+        if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "" ] && [ "$DOMAIN" != "null" ] && [ "$DOMAIN" != "undefined" ]; then
             echo "🌐 Configurando SSL para domínio: $DOMAIN"
             
+            # Verificar se o domínio é válido (contém pelo menos um ponto)
+            if [[ "$DOMAIN" == *"."* ]]; then
+                echo "✅ Domínio válido detectado"
+            else
+                echo "❌ Domínio inválido: $DOMAIN (deve conter pelo menos um ponto)"
+                echo "⚠️ Criando certificado auto-assinado..."
+                mkdir -p ssl
+                sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                    -keyout ssl/key.pem \
+                    -out ssl/cert.pem \
+                    -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=localhost"
+                sudo chown -R github-actions:github-actions ssl/
+                echo "✅ Certificado auto-assinado criado"
+                exit 0
+            fi
+            
             # Parar nginx temporariamente para obter certificado
-            sudo systemctl stop nginx || true
+            sudo systemctl stop nginx 2>/dev/null || true
             
             # Obter certificado Let's Encrypt
+            echo "🔐 Tentando obter certificado Let's Encrypt..."
             sudo certbot certonly --standalone --non-interactive --agree-tos \
-                --email admin@$DOMAIN -d $DOMAIN
+                --email admin@$DOMAIN -d $DOMAIN --dry-run
             
             if [ $? -eq 0 ]; then
-                echo '✅ Certificado Let'\''s Encrypt obtido com sucesso!'
+                echo "✅ Teste bem-sucedido, obtendo certificado real..."
+                sudo certbot certonly --standalone --non-interactive --agree-tos \
+                    --email admin@$DOMAIN -d $DOMAIN
                 
-                # Configurar renovação automática
-                echo '0 12 * * * /usr/bin/certbot renew --quiet --post-hook "systemctl reload nginx"' | sudo crontab -
-                
-                # Configurar nginx para usar certificados Let's Encrypt
-                sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem ssl/cert.pem
-                sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem ssl/key.pem
-                sudo chown -R github-actions:github-actions ssl/
-                
-                echo '✅ SSL Let'\''s Encrypt configurado!'
+                if [ $? -eq 0 ]; then
+                    echo '✅ Certificado Let'\''s Encrypt obtido com sucesso!'
+                    
+                    # Instalar cron se não estiver disponível
+                    sudo apt-get install -y cron
+                    
+                    # Configurar renovação automática
+                    (crontab -l 2>/dev/null; echo '0 12 * * * /usr/bin/certbot renew --quiet --post-hook "systemctl reload nginx"') | crontab -
+                    
+                    # Configurar nginx para usar certificados Let's Encrypt
+                    sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem ssl/cert.pem
+                    sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem ssl/key.pem
+                    sudo chown -R github-actions:github-actions ssl/
+                    
+                    echo '✅ SSL Let'\''s Encrypt configurado!'
+                else
+                    echo '❌ Falha ao obter certificado Let'\''s Encrypt'
+                    echo '🔐 Criando certificado auto-assinado como fallback...'
+                    mkdir -p ssl
+                    sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                        -keyout ssl/key.pem \
+                        -out ssl/cert.pem \
+                        -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=$DOMAIN"
+                    sudo chown -R github-actions:github-actions ssl/
+                fi
             else
-                echo '❌ Falha ao obter certificado Let'\''s Encrypt'
+                echo '❌ Falha no teste do Let'\''s Encrypt'
                 echo '🔐 Criando certificado auto-assinado como fallback...'
+                mkdir -p ssl
                 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
                     -keyout ssl/key.pem \
                     -out ssl/cert.pem \
