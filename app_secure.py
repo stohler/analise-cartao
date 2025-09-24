@@ -44,9 +44,14 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
     app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hora
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
-    app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
+    
+    # Configurações de sessão para produção
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    # Usar HTTPS se configurado no .env, senão usar HTTP
+    app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_DOMAIN'] = os.environ.get('SESSION_COOKIE_DOMAIN') or None
     
     # Configurações da aplicação
     app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -58,6 +63,12 @@ def create_app():
     
     # Inicializar extensões
     csrf = CSRFProtect(app)
+    
+    # Configurações adicionais do CSRF para produção
+    app.config['WTF_CSRF_ENABLED'] = True
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = True
+    app.config['WTF_CSRF_METHODS'] = ['POST', 'PUT', 'PATCH', 'DELETE']
+    
     login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
@@ -121,6 +132,16 @@ def create_app():
         }
     
     # Middleware de segurança
+    @app.before_request
+    def configure_session():
+        """Configura a sessão antes de cada requisição"""
+        # Tornar sessão permanente
+        session.permanent = True
+        
+        # Garantir que a sessão seja inicializada corretamente
+        if 'csrf_token' not in session:
+            session['csrf_token'] = None
+    
     @app.before_request
     def security_headers():
         """Adiciona headers de segurança"""

@@ -266,9 +266,12 @@ jobs:
         SECRET_KEY=${{ secrets.SECRET_KEY }}
         MONGODB_URI=${{ secrets.MONGODB_URI }}
         REGISTRATION_ENABLED=false
-        SESSION_COOKIE_SECURE=false
+        SESSION_COOKIE_SECURE=true
         SESSION_COOKIE_HTTPONLY=true
         SESSION_COOKIE_SAMESITE=Lax
+        SESSION_COOKIE_DOMAIN=
+        WTF_CSRF_ENABLED=true
+        WTF_CSRF_TIME_LIMIT=3600
         PORT=5000
         HOST=0.0.0.0
         EOF
@@ -422,27 +425,58 @@ jobs:
           echo '✅ Configuração Docker otimizada'
         "
     
-    - name: 🔧 Configurar SSL automático
+    - name: 🔒 Configurar Let's Encrypt SSL
       run: |
         echo "🔒 Configurando SSL..."
         ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
           PROJECT_DIR=/home/github-actions/analise-cartao
           cd \$PROJECT_DIR
           
-          # Script para configurar SSL automaticamente
-          cat > setup_ssl.sh << 'EOF'
+          # Script para configurar Let's Encrypt
+          cat > setup_letsencrypt.sh << 'EOF'
         #!/bin/bash
         
         # Verificar se certbot está instalado
         if ! command -v certbot &> /dev/null; then
             echo '📦 Instalando Certbot...'
             sudo apt update
-            sudo apt install -y certbot
+            sudo apt install -y certbot python3-certbot-nginx
         fi
         
-        # Criar certificado auto-assinado temporário
-        if [ ! -f ssl/cert.pem ]; then
-            echo '🔐 Criando certificado auto-assinado temporário...'
+        # Verificar se há domínio configurado
+        if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "" ]; then
+            echo "🌐 Configurando SSL para domínio: $DOMAIN"
+            
+            # Parar nginx temporariamente para obter certificado
+            sudo systemctl stop nginx || true
+            
+            # Obter certificado Let's Encrypt
+            sudo certbot certonly --standalone --non-interactive --agree-tos \
+                --email admin@$DOMAIN -d $DOMAIN
+            
+            if [ $? -eq 0 ]; then
+                echo '✅ Certificado Let'\''s Encrypt obtido com sucesso!'
+                
+                # Configurar renovação automática
+                echo '0 12 * * * /usr/bin/certbot renew --quiet --post-hook "systemctl reload nginx"' | sudo crontab -
+                
+                # Configurar nginx para usar certificados Let's Encrypt
+                sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem ssl/cert.pem
+                sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem ssl/key.pem
+                sudo chown -R github-actions:github-actions ssl/
+                
+                echo '✅ SSL Let'\''s Encrypt configurado!'
+            else
+                echo '❌ Falha ao obter certificado Let'\''s Encrypt'
+                echo '🔐 Criando certificado auto-assinado como fallback...'
+                sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                    -keyout ssl/key.pem \
+                    -out ssl/cert.pem \
+                    -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=$DOMAIN"
+                sudo chown -R github-actions:github-actions ssl/
+            fi
+        else
+            echo '⚠️ Nenhum domínio configurado, criando certificado auto-assinado...'
             mkdir -p ssl
             sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
                 -keyout ssl/key.pem \
@@ -451,12 +485,11 @@ jobs:
             sudo chown -R github-actions:github-actions ssl/
         fi
         
-        echo '✅ SSL configurado (certificado auto-assinado)'
-        echo '💡 Para domínio real, execute: sudo certbot certonly --standalone -d seu-dominio.com'
+        echo '✅ SSL configurado'
         EOF
           
-          chmod +x setup_ssl.sh
-          ./setup_ssl.sh
+          chmod +x setup_letsencrypt.sh
+          DOMAIN="${{ secrets.DOMAIN }}" ./setup_letsencrypt.sh
         "
     
     - name: 🚀 Construir e iniciar aplicação
