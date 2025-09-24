@@ -447,8 +447,8 @@ jobs:
           if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "" ] && [ "$DOMAIN" != "null" ] && [ "$DOMAIN" != "undefined" ]; then
               echo "🌐 Domínio configurado: $DOMAIN"
               
-              # Verificar se o domínio é válido
-              if [[ "$DOMAIN" == *"."* ]]; then
+              # Verificar se o domínio é válido (contém ponto)
+              if echo "$DOMAIN" | grep -q "\."; then
                   echo "✅ Domínio válido detectado"
                   
                   # Parar nginx temporariamente
