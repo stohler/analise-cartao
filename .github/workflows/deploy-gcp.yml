@@ -442,61 +442,50 @@ jobs:
               sudo apt install -y certbot python3-certbot-nginx
           fi
           
-          # Verificar se há domínio configurado
+          # Configurar SSL - versão simplificada
           DOMAIN="${{ secrets.DOMAIN }}"
-          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "" ] && [ "$DOMAIN" != "null" ] && [ "$DOMAIN" != "undefined" ]; then
-              echo "🌐 Domínio configurado: $DOMAIN"
+          
+          # Criar diretório SSL
+          mkdir -p ssl
+          
+          # Verificar se há domínio válido
+          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "" ] && [ "$DOMAIN" != "null" ] && [ "$DOMAIN" != "undefined" ] && echo "$DOMAIN" | grep -q "\."; then
+              echo "🌐 Domínio válido configurado: $DOMAIN"
+              echo "🔐 Tentando obter certificado Let's Encrypt..."
               
-              # Verificar se o domínio é válido (contém ponto)
-              if echo "$DOMAIN" | grep -q "\."; then
-                  echo "✅ Domínio válido detectado"
-                  
-                  # Parar nginx temporariamente
-                  sudo systemctl stop nginx 2>/dev/null || true
-                  
-                  # Tentar obter certificado Let's Encrypt
-                  echo "🔐 Tentando obter certificado Let's Encrypt..."
-                  if sudo certbot certonly --standalone --non-interactive --agree-tos --email admin@$DOMAIN -d $DOMAIN --dry-run; then
-                      echo "✅ Teste bem-sucedido, obtendo certificado real..."
-                      if sudo certbot certonly --standalone --non-interactive --agree-tos --email admin@$DOMAIN -d $DOMAIN; then
-                          echo "✅ Certificado Let's Encrypt obtido!"
-                          
-                          # Instalar cron
-                          sudo apt-get install -y cron
-                          
-                          # Configurar renovação
-                          echo '0 12 * * * /usr/bin/certbot renew --quiet' | crontab -
-                          
-                          # Copiar certificados
-                          sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem ssl/cert.pem
-                          sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem ssl/key.pem
-                          sudo chown -R github-actions:github-actions ssl/
-                          
-                          echo "✅ SSL Let's Encrypt configurado!"
-                      else
-                          echo "❌ Falha ao obter certificado real"
-                          echo "🔐 Criando certificado auto-assinado..."
-                          mkdir -p ssl
-                          sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/key.pem -out ssl/cert.pem -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=$DOMAIN"
-                          sudo chown -R github-actions:github-actions ssl/
-                      fi
+              # Parar nginx temporariamente
+              sudo systemctl stop nginx 2>/dev/null || true
+              
+              # Tentar obter certificado Let's Encrypt
+              if sudo certbot certonly --standalone --non-interactive --agree-tos --email admin@$DOMAIN -d $DOMAIN --dry-run 2>/dev/null; then
+                  echo "✅ Teste bem-sucedido, obtendo certificado real..."
+                  if sudo certbot certonly --standalone --non-interactive --agree-tos --email admin@$DOMAIN -d $DOMAIN 2>/dev/null; then
+                      echo "✅ Certificado Let's Encrypt obtido!"
+                      
+                      # Instalar cron
+                      sudo apt-get install -y cron
+                      
+                      # Configurar renovação
+                      echo '0 12 * * * /usr/bin/certbot renew --quiet' | crontab -
+                      
+                      # Copiar certificados
+                      sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem ssl/cert.pem
+                      sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem ssl/key.pem
+                      sudo chown -R github-actions:github-actions ssl/
+                      
+                      echo "✅ SSL Let's Encrypt configurado!"
                   else
-                      echo "❌ Falha no teste do Let's Encrypt"
-                      echo "🔐 Criando certificado auto-assinado..."
-                      mkdir -p ssl
+                      echo "❌ Falha ao obter certificado real, criando auto-assinado..."
                       sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/key.pem -out ssl/cert.pem -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=$DOMAIN"
                       sudo chown -R github-actions:github-actions ssl/
                   fi
               else
-                  echo "❌ Domínio inválido sem ponto: $DOMAIN"
-                  echo "🔐 Criando certificado auto-assinado..."
-                  mkdir -p ssl
-                  sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/key.pem -out ssl/cert.pem -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=localhost"
+                  echo "❌ Falha no teste do Let's Encrypt, criando auto-assinado..."
+                  sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/key.pem -out ssl/cert.pem -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=$DOMAIN"
                   sudo chown -R github-actions:github-actions ssl/
               fi
           else
-              echo "⚠️ Nenhum domínio configurado, criando certificado auto-assinado..."
-              mkdir -p ssl
+              echo "⚠️ Nenhum domínio válido configurado, criando certificado auto-assinado..."
               sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/key.pem -out ssl/cert.pem -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=localhost"
               sudo chown -R github-actions:github-actions ssl/
           fi
