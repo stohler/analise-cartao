@@ -5,7 +5,7 @@
 Aplicação principal com autenticação integrada
 """
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, send_file
 from flask_login import LoginManager, login_required, current_user, logout_user
 from flask_wtf.csrf import CSRFProtect
 import os
@@ -53,6 +53,10 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_DOMAIN'] = os.environ.get('SESSION_COOKIE_DOMAIN') or None
     
+    # Configurações adicionais para evitar problemas com CSRF
+    app.config['WTF_CSRF_SSL_STRICT'] = False
+    app.config['WTF_CSRF_TIME_LIMIT'] = None  # Sem limite de tempo para CSRF
+    
     # Configurações da aplicação
     app.config['UPLOAD_FOLDER'] = 'uploads'
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
@@ -69,6 +73,13 @@ def create_app():
     app.config['WTF_CSRF_CHECK_DEFAULT'] = True
     app.config['WTF_CSRF_METHODS'] = ['POST', 'PUT', 'PATCH', 'DELETE']
     
+    # Configuração adicional para evitar erros de CSRF
+    def init_csrf():
+        """Inicializa o CSRF na primeira requisição"""
+        with app.app_context():
+            if 'csrf_token' not in session:
+                session['csrf_token'] = ''
+    
     login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
@@ -81,6 +92,23 @@ def create_app():
     # Conectar ao MongoDB para usuários
     if not user_manager.connect():
         print("❌ Falha na conexão com MongoDB para usuários")
+    else:
+        # Verificar se existe usuário admin, se não, criar
+        admin_user = user_manager.get_user_by_username("admin")
+        if not admin_user:
+            print("👤 Criando usuário admin padrão...")
+            result = user_manager.create_user(
+                username="admin",
+                email="admin@analise-cartao.com",
+                password="admin123",
+                is_admin=True
+            )
+            if result['success']:
+                print("✅ Usuário admin criado com sucesso!")
+            else:
+                print(f"❌ Erro ao criar usuário admin: {result['message']}")
+        else:
+            print("✅ Usuário admin já existe")
     
     @login_manager.user_loader
     def load_user(user_id):
@@ -140,7 +168,14 @@ def create_app():
         
         # Garantir que a sessão seja inicializada corretamente
         if 'csrf_token' not in session:
-            session['csrf_token'] = None
+            session['csrf_token'] = ''
+        
+        # Garantir que a sessão tenha valores válidos para CSRF
+        if session.get('csrf_token') is None:
+            session['csrf_token'] = ''
+        
+        # Inicializar CSRF se necessário
+        init_csrf()
     
     @app.before_request
     def security_headers():
