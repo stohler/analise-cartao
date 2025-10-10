@@ -21,6 +21,8 @@ from pdf_analyzer import PDFAnalyzer
 from data_handler import DataHandler
 from models import UserManager, User
 from auth import auth_bp, get_user_manager
+from subtransaction_models import SubTransactionManager
+from xml_parser import NFeParser
 
 # Importar MongoDB de forma condicional
 try:
@@ -120,6 +122,10 @@ def create_app():
     # Inicializar componentes
     analyzer = PDFAnalyzer()
     data_handler = DataHandler()
+    
+    # Inicializar gerenciador de subtransações
+    subtransaction_manager = SubTransactionManager()
+    xml_parser = NFeParser()
     
     # Inicializar MongoDB se disponível
     mongo_handler = None
@@ -1250,6 +1256,288 @@ def create_app():
             
         except Exception as e:
             return jsonify({'success': False, 'message': f'Erro ao atualizar categoria da sessão: {str(e)}'}), 500
+
+    # ==========================================
+    # ROTAS PARA SUBTRANSAÇÕES
+    # ==========================================
+
+    @app.route('/subtransactions')
+    @login_required
+    def subtransactions():
+        """Página principal de subtransações"""
+        unreconciled_xmls = subtransaction_manager.get_unreconciled_xmls()
+        return render_template('subtransactions.html', 
+                             unreconciled_xmls=unreconciled_xmls,
+                             total_xmls=len(subtransaction_manager.xmls),
+                             user=current_user)
+
+    @app.route('/upload_xml', methods=['POST'])
+    @login_required
+    @csrf.exempt
+    def upload_xml():
+        """Upload de XML de subtransações"""
+        if 'file' not in request.files:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if file and file.filename.lower().endswith('.xml'):
+            try:
+                # Ler conteúdo do arquivo
+                xml_content = file.read().decode('utf-8')
+                
+                # Parsear XML
+                xml_obj = xml_parser.parse_xml_text(xml_content, file.filename)
+                
+                if xml_obj:
+                    # Adicionar ao gerenciador
+                    subtransaction_manager.add_xml(xml_obj)
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'XML processado com sucesso! {xml_obj.get_total_items()} itens encontrados.',
+                        'data': {
+                            'xml_id': xml_obj.xml_id,
+                            'establishment': xml_obj.establishment_name,
+                            'total_value': xml_obj.total_value,
+                            'items_count': xml_obj.get_total_items(),
+                            'emission_date': xml_obj.emission_date.isoformat()
+                        }
+                    })
+                else:
+                    return jsonify({'error': 'Não foi possível processar o XML'}), 400
+                    
+            except Exception as e:
+                return jsonify({'error': f'Erro ao processar XML: {str(e)}'}), 500
+        
+        return jsonify({'error': 'Formato de arquivo inválido. Apenas XMLs são aceitos.'}), 400
+
+    @app.route('/api/subtransactions')
+    @login_required
+    def api_subtransactions():
+        """API para listar subtransações não conciliadas"""
+        unreconciled_xmls = subtransaction_manager.get_unreconciled_xmls()
+        
+        xmls_data = []
+        for xml in unreconciled_xmls:
+            xmls_data.append({
+                'xml_id': xml.xml_id,
+                'filename': xml.filename,
+                'establishment_name': xml.establishment_name,
+                'total_value': xml.total_value,
+                'emission_date': xml.emission_date.isoformat(),
+                'items_count': xml.get_total_items(),
+                'categories_summary': xml.get_categories_summary()
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': xmls_data
+        })
+
+    @app.route('/api/xml_details/<xml_id>')
+    @login_required
+    def api_xml_details(xml_id):
+        """API para obter detalhes de um XML específico"""
+        try:
+            xml_obj = subtransaction_manager.get_xml_by_id(xml_id)
+            if not xml_obj:
+                return jsonify({'error': 'XML não encontrado'}), 404
+            
+            # Obter subtransações deste XML
+            xml_subtransactions = []
+            for subtransaction in subtransaction_manager.subtransactions.values():
+                if subtransaction.xml_id == xml_id:
+                    xml_subtransactions.append({
+                        'id': subtransaction.id,
+                        'description': subtransaction.description,
+                        'quantity': subtransaction.quantity,
+                        'unit_value': subtransaction.unit_value,
+                        'total_value': subtransaction.total_value,
+                        'category': subtransaction.category,
+                        'subcategory': subtransaction.subcategory,
+                        'reconciled': subtransaction.reconciled,
+                        'transaction_id': subtransaction.transaction_id
+                    })
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'xml_info': {
+                        'xml_id': xml_obj.xml_id,
+                        'filename': xml_obj.filename,
+                        'establishment_name': xml_obj.establishment_name,
+                        'total_value': xml_obj.total_value,
+                        'emission_date': xml_obj.emission_date.isoformat(),
+                        'items_count': xml_obj.get_total_items(),
+                        'categories_summary': xml_obj.get_categories_summary()
+                    },
+                    'subtransactions': xml_subtransactions
+                }
+            })
+            
+        except Exception as e:
+            return jsonify({'error': f'Erro ao buscar detalhes: {str(e)}'}), 500
+
+    @app.route('/api/reconciliation_suggestions')
+    @login_required
+    def api_reconciliation_suggestions():
+        """API para obter sugestões de conciliação"""
+        target_date_str = request.args.get('date')
+        target_value_str = request.args.get('value')
+        
+        if not target_date_str or not target_value_str:
+            return jsonify({'error': 'Data e valor são obrigatórios'}), 400
+        
+        try:
+            target_date = datetime.fromisoformat(target_date_str)
+            target_value = float(target_value_str)
+            
+            suggestions = subtransaction_manager.get_reconciliation_suggestions(
+                target_date, target_value
+            )
+            
+            suggestions_data = []
+            for xml in suggestions:
+                suggestions_data.append({
+                    'xml_id': xml.xml_id,
+                    'filename': xml.filename,
+                    'establishment_name': xml.establishment_name,
+                    'total_value': xml.total_value,
+                    'emission_date': xml.emission_date.isoformat(),
+                    'items_count': xml.get_total_items(),
+                    'categories_summary': xml.get_categories_summary()
+                })
+            
+            return jsonify({
+                'success': True,
+                'data': suggestions_data
+            })
+            
+        except Exception as e:
+            return jsonify({'error': f'Erro ao buscar sugestões: {str(e)}'}), 500
+
+    @app.route('/api/reconcile_xml', methods=['POST'])
+    @login_required
+    @csrf.exempt
+    def api_reconcile_xml():
+        """API para conciliar um XML com uma transação"""
+        data = request.get_json()
+        xml_id = data.get('xml_id')
+        transaction_id = data.get('transaction_id')
+        
+        if not xml_id or not transaction_id:
+            return jsonify({'error': 'XML ID e Transaction ID são obrigatórios'}), 400
+        
+        try:
+            success = subtransaction_manager.reconcile_xml_with_transaction(xml_id, transaction_id)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'XML conciliado com sucesso!'
+                })
+            else:
+                return jsonify({'error': 'XML não encontrado'}), 404
+                
+        except Exception as e:
+            return jsonify({'error': f'Erro ao conciliar XML: {str(e)}'}), 500
+
+    @app.route('/api/save_subtransactions_to_mongodb', methods=['POST'])
+    @login_required
+    @csrf.exempt
+    def api_save_subtransactions_to_mongodb():
+        """API para salvar subtransações no MongoDB com confirmação"""
+        if not MONGODB_AVAILABLE or not mongo_connected or not mongo_handler:
+            return jsonify({
+                'success': False,
+                'message': 'MongoDB não disponível'
+            })
+        
+        try:
+            data = request.get_json()
+            xml_id = data.get('xml_id')
+            
+            if not xml_id:
+                return jsonify({'error': 'XML ID é obrigatório'}), 400
+            
+            # Obter XML e subtransações
+            xml_obj = subtransaction_manager.get_xml_by_id(xml_id)
+            if not xml_obj:
+                return jsonify({'error': 'XML não encontrado'}), 404
+            
+            # Obter subtransações deste XML
+            xml_subtransactions = []
+            for subtransaction in subtransaction_manager.subtransactions.values():
+                if subtransaction.xml_id == xml_id:
+                    xml_subtransactions.append(subtransaction)
+            
+            if not xml_subtransactions:
+                return jsonify({'error': 'Nenhuma subtransação encontrada para este XML'}), 400
+            
+            # Converter subtransações para formato MongoDB
+            mongo_documents = []
+            for subtransaction in xml_subtransactions:
+                doc = {
+                    'xml_id': subtransaction.xml_id,
+                    'subtransaction_id': subtransaction.id,
+                    'description': subtransaction.description,
+                    'quantity': subtransaction.quantity,
+                    'unit_value': subtransaction.unit_value,
+                    'total_value': subtransaction.total_value,
+                    'category': subtransaction.category,
+                    'subcategory': subtransaction.subcategory,
+                    'establishment_name': xml_obj.establishment_name,
+                    'emission_date': xml_obj.emission_date,
+                    'reconciled': subtransaction.reconciled,
+                    'transaction_id': subtransaction.transaction_id,
+                    'saved_at': datetime.now(),
+                    'user_id': current_user.id,
+                    'type': 'subtransaction'
+                }
+                mongo_documents.append(doc)
+            
+            # Salvar no MongoDB
+            result = mongo_handler.collection.insert_many(mongo_documents)
+            
+            return jsonify({
+                'success': True,
+                'message': f'{len(mongo_documents)} subtransações salvas no MongoDB com sucesso!',
+                'saved_count': len(mongo_documents),
+                'inserted_ids': [str(id) for id in result.inserted_ids]
+            })
+            
+        except Exception as e:
+            return jsonify({'error': f'Erro ao salvar subtransações: {str(e)}'}), 500
+
+    @app.route('/subcategory_report')
+    @login_required
+    def subcategory_report():
+        """Página de relatório por subcategoria"""
+        # Agrupar subtransações por categoria e subcategoria
+        from collections import defaultdict
+        
+        category_data = defaultdict(lambda: defaultdict(float))
+        total_by_category = defaultdict(float)
+        total_by_subcategory = defaultdict(float)
+        
+        for subtransaction in subtransaction_manager.subtransactions.values():
+            if not subtransaction.reconciled:
+                category = subtransaction.category
+                subcategory = subtransaction.subcategory
+                value = subtransaction.total_value
+                
+                category_data[category][subcategory] += value
+                total_by_category[category] += value
+                total_by_subcategory[f"{category}/{subcategory}"] += value
+        
+        return render_template('subcategory_report.html',
+                             category_data=dict(category_data),
+                             total_by_category=dict(total_by_category),
+                             total_by_subcategory=dict(total_by_subcategory),
+                             user=current_user)
 
     # Manipulador de erro 404
     @app.errorhandler(404)

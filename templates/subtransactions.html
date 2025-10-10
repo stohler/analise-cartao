@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}Subtransações - Analisador de PDFs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-upload me-2"></i>Upload de XML de Subtransações
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="uploadXmlForm" enctype="multipart/form-data">
+                    <div class="upload-area" id="uploadXmlArea">
+                        <i class="fas fa-file-code fa-3x text-muted mb-3"></i>
+                        <h5>Arraste e solte seu XML aqui</h5>
+                        <p class="text-muted">ou clique para selecionar um arquivo XML de NFe</p>
+                        <input type="file" name="file" id="xmlFileInput" accept=".xml" class="d-none">
+                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('xmlFileInput').click()">
+                            <i class="fas fa-folder-open me-2"></i>Selecionar XML
+                        </button>
+                    </div>
+                    <div class="mt-3" id="xmlFileInfo" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-file-code me-2"></i>
+                            <span id="xmlFileName"></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearXmlFile()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid mt-3">
+                        <button type="submit" class="btn btn-primary" id="uploadXmlBtn" disabled>
+                            <i class="fas fa-upload me-2"></i>Processar XML
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>XMLs Não Conciliados
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="xmlList">
+                    {% if unreconciled_xmls %}
+                        {% for xml in unreconciled_xmls %}
+                        <div class="card mb-3" id="xml-{{ xml.xml_id }}">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h6 class="card-title">{{ xml.establishment_name or 'Estabelecimento não identificado' }}</h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                {{ xml.emission_date.strftime('%d/%m/%Y %H:%M') }}
+                                                <i class="fas fa-dollar-sign ms-3 me-1"></i>
+                                                R$ {{ "%.2f"|format(xml.total_value) }}
+                                                <i class="fas fa-shopping-cart ms-3 me-1"></i>
+                                                {{ xml.get_total_items() }} itens
+                                            </small>
+                                        </p>
+                                        <div class="mt-2">
+                                            {% for category, value in xml.get_categories_summary().items() %}
+                                            <span class="badge bg-secondary me-1">{{ category }}: R$ {{ "%.2f"|format(value) }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showXmlDetails('{{ xml.xml_id }}')">
+                                            <i class="fas fa-eye me-1"></i>Ver Detalhes
+                                        </button>
+                                        <button class="btn btn-sm btn-success" onclick="showReconciliationSuggestions('{{ xml.xml_id }}', {{ xml.total_value }}, '{{ xml.emission_date.isoformat() }}')">
+                                            <i class="fas fa-link me-1"></i>Conciliação
+                                        </button>
+                                        <button class="btn btn-sm btn-warning" onclick="saveToMongoDB('{{ xml.xml_id }}')">
+                                            <i class="fas fa-database me-1"></i>Salvar no MongoDB
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                            <h6>Nenhum XML não conciliado encontrado</h6>
+                            <p>Faça upload de XMLs de NFe para começar</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Estatísticas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">{{ total_xmls }}</h4>
+                        <small class="text-muted">Total XMLs</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-warning">{{ unreconciled_xmls|length }}</h4>
+                        <small class="text-muted">Não Conciliados</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="mb-2">
+                    <strong>Taxa de Conciliação:</strong>
+                    <span class="float-end">
+                        {% if total_xmls > 0 %}
+                            {{ "%.1f"|format((total_xmls - unreconciled_xmls|length) / total_xmls * 100) }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Relatórios
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('subcategory_report') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-bar me-2"></i>Relatório por Subcategoria
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Como Usar
+                </h5>
+            </div>
+            <div class="card-body">
+                <ol class="small">
+                    <li>Faça upload de XMLs de NFe</li>
+                    <li>Os itens serão automaticamente categorizados</li>
+                    <li>Use a conciliação para associar com transações</li>
+                    <li>Visualize relatórios por subcategoria</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalhes do XML -->
+<div class="modal fade" id="xmlDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do XML</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="xmlDetailsContent">
+                <!-- Conteúdo será carregado via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para sugestões de conciliação -->
+<div class="modal fade" id="reconciliationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sugestões de Conciliação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="reconciliationContent">
+                <!-- Conteúdo será carregado via JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const xmlFileInput = document.getElementById('xmlFileInput');
+    const uploadXmlArea = document.getElementById('uploadXmlArea');
+    const xmlFileInfo = document.getElementById('xmlFileInfo');
+    const xmlFileName = document.getElementById('xmlFileName');
+    const uploadXmlBtn = document.getElementById('uploadXmlBtn');
+
+    // Drag and drop functionality para XML
+    uploadXmlArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadXmlArea.style.borderColor = '#0d6efd';
+        uploadXmlArea.style.backgroundColor = '#f8f9fa';
+    });
+
+    uploadXmlArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        uploadXmlArea.style.borderColor = '#dee2e6';
+        uploadXmlArea.style.backgroundColor = 'transparent';
+    });
+
+    uploadXmlArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadXmlArea.style.borderColor = '#dee2e6';
+        uploadXmlArea.style.backgroundColor = 'transparent';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleXmlFile(files[0]);
+        }
+    });
+
+    // File input change
+    xmlFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleXmlFile(e.target.files[0]);
+        }
+    });
+
+    function handleXmlFile(file) {
+        if (file.type === 'text/xml' || file.name.toLowerCase().endsWith('.xml')) {
+            xmlFileName.textContent = file.name;
+            xmlFileInfo.style.display = 'block';
+            uploadXmlBtn.disabled = false;
+        } else {
+            showToast('Apenas arquivos XML são permitidos', 'error');
+        }
+    }
+
+    function clearXmlFile() {
+        xmlFileInput.value = '';
+        xmlFileInfo.style.display = 'none';
+        uploadXmlBtn.disabled = true;
+    }
+
+    // Form submission
+    document.getElementById('uploadXmlForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!xmlFileInput.files || xmlFileInput.files.length === 0) {
+            showToast('Por favor, selecione um arquivo XML', 'error');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', xmlFileInput.files[0]);
+        
+        const originalText = showLoading(uploadXmlBtn);
+        
+        fetch('/upload_xml', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Recarregar a página para mostrar o novo XML
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showToast(data.error || 'Erro ao processar XML', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            showToast('Erro ao fazer upload do XML', 'error');
+        })
+        .finally(() => {
+            restoreButton(uploadXmlBtn, originalText);
+        });
+    });
+
+    function showXmlDetails(xmlId) {
+        // Buscar detalhes do XML
+        fetch(`/api/xml_details/${xmlId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const xmlInfo = data.data.xml_info;
+                const subtransactions = data.data.subtransactions;
+                
+                let content = `
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-building me-2"></i>Estabelecimento</h6>
+                            <p class="text-muted">${xmlInfo.establishment_name}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6><i class="fas fa-calendar me-2"></i>Data de Emissão</h6>
+                            <p class="text-muted">${new Date(xmlInfo.emission_date).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6><i class="fas fa-dollar-sign me-2"></i>Valor Total</h6>
+                            <p class="text-primary fw-bold">R$ ${parseFloat(xmlInfo.total_value).toFixed(2)}</p>
+                        </div>
+                    </div>
+                    
+                    <h6><i class="fas fa-shopping-cart me-2"></i>Itens (${xmlInfo.items_count} produtos)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Descrição</th>
+                                    <th>Quantidade</th>
+                                    <th>Valor Unit.</th>
+                                    <th>Valor Total</th>
+                                    <th>Categoria</th>
+                                    <th>Subcategoria</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                subtransactions.forEach(item => {
+                    content += `
+                        <tr>
+                            <td>${item.description}</td>
+                            <td>${item.quantity}</td>
+                            <td>R$ ${parseFloat(item.unit_value).toFixed(2)}</td>
+                            <td>R$ ${parseFloat(item.total_value).toFixed(2)}</td>
+                            <td><span class="badge bg-primary">${item.category}</span></td>
+                            <td><span class="badge bg-secondary">${item.subcategory}</span></td>
+                        </tr>
+                    `;
+                });
+                
+                content += `
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6><i class="fas fa-chart-pie me-2"></i>Resumo por Categoria</h6>
+                        <div class="row">
+                `;
+                
+                Object.entries(xmlInfo.categories_summary).forEach(([category, value]) => {
+                    content += `
+                        <div class="col-md-4 mb-2">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body p-2">
+                                    <small class="text-muted">${category}</small>
+                                    <div class="fw-bold">R$ ${parseFloat(value).toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += `
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('xmlDetailsContent').innerHTML = content;
+                new bootstrap.Modal(document.getElementById('xmlDetailsModal')).show();
+            } else {
+                showToast(data.error || 'Erro ao buscar detalhes', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Erro ao buscar detalhes', 'error');
+        });
+    }
+
+    function showReconciliationSuggestions(xmlId, totalValue, emissionDate) {
+        // Buscar sugestões de conciliação
+        fetch(`/api/reconciliation_suggestions?date=${emissionDate}&value=${totalValue}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mostrar modal com sugestões
+                showToast('Sugestões de conciliação carregadas', 'info');
+                // Implementar modal de conciliação
+            } else {
+                showToast(data.error || 'Erro ao buscar sugestões', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Erro ao buscar sugestões', 'error');
+        });
+    }
+
+    function saveToMongoDB(xmlId) {
+        // Mostrar confirmação antes de salvar
+        if (!confirm('Tem certeza que deseja salvar estas subtransações no MongoDB? Esta ação não pode ser desfeita.')) {
+            return;
+        }
+        
+        // Mostrar loading
+        const saveBtn = event.target;
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+        saveBtn.disabled = true;
+        
+        // Fazer requisição para salvar
+        fetch('/api/save_subtransactions_to_mongodb', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                xml_id: xmlId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Opcional: recarregar a página ou atualizar a lista
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showToast(data.error || 'Erro ao salvar no MongoDB', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Erro ao salvar no MongoDB', 'error');
+        })
+        .finally(() => {
+            // Restaurar botão
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        });
+    }
+</script>
+{% endblock %}
