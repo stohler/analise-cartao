@@ -428,9 +428,13 @@ jobs:
     - name: 🔒 Configurar Let's Encrypt SSL
       run: |
         echo "🔒 Configurando SSL..."
-        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} "
+        ssh -i ~/.ssh/gcp_deploy ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_IP }} << 'EOF'
+          
+          # Garante que o script pare se algum comando falhar
+          set -e 
+          
           PROJECT_DIR=/home/github-actions/analise-cartao
-          cd \$PROJECT_DIR
+          cd $PROJECT_DIR
           
           # Configurar SSL diretamente
           echo "🔧 Configurando SSL..."
@@ -438,12 +442,13 @@ jobs:
           # Verificar se certbot está instalado
           if ! command -v certbot &> /dev/null; then
               echo '📦 Instalando Certbot...'
-              sudo apt update
-              sudo apt install -y certbot python3-certbot-nginx
+              sudo apt-get update
+              sudo apt-get install -y certbot python3-certbot-nginx
           fi
           
-          # Configurar SSL - versão simplificada
-          DOMAIN="${{ secrets.DOMAIN }}"
+          # O segredo do GitHub é injetado aqui pelo runner ANTES de enviar o script.
+          # As aspas simples garantem que o valor seja tratado como uma string literal.
+          DOMAIN='${{ secrets.DOMAIN }}'
           
           # Criar diretório SSL
           mkdir -p ssl
@@ -456,31 +461,26 @@ jobs:
               # Parar nginx temporariamente
               sudo systemctl stop nginx 2>/dev/null || true
               
-              # Tentar obter certificado Let's Encrypt
-              if sudo certbot certonly --standalone --non-interactive --agree-tos --email admin@$DOMAIN -d $DOMAIN --dry-run 2>/dev/null; then
-                  echo "✅ Teste bem-sucedido, obtendo certificado real..."
-                  if sudo certbot certonly --standalone --non-interactive --agree-tos --email admin@$DOMAIN -d $DOMAIN 2>/dev/null; then
-                      echo "✅ Certificado Let's Encrypt obtido!"
-                      
-                      # Instalar cron
+              # Tenta obter o certificado real. Se falhar, vai para o bloco 'else'.
+              if sudo certbot certonly --standalone --non-interactive --agree-tos --email admin@$DOMAIN -d $DOMAIN; then
+                  echo "✅ Certificado Let's Encrypt obtido!"
+                  
+                  # Instalar cron se não existir
+                  if ! command -v cron &> /dev/null; then
                       sudo apt-get install -y cron
-                      
-                      # Configurar renovação
-                      echo '0 12 * * * /usr/bin/certbot renew --quiet' | crontab -
-                      
-                      # Copiar certificados
-                      sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem ssl/cert.pem
-                      sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem ssl/key.pem
-                      sudo chown -R github-actions:github-actions ssl/
-                      
-                      echo "✅ SSL Let's Encrypt configurado!"
-                  else
-                      echo "❌ Falha ao obter certificado real, criando auto-assinado..."
-                      sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/key.pem -out ssl/cert.pem -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=$DOMAIN"
-                      sudo chown -R github-actions:github-actions ssl/
                   fi
+                  
+                  # Configurar renovação automática (sobrescreve crontab)
+                  echo '0 12 * * * /usr/bin/certbot renew --quiet' | crontab -
+                  
+                  # Copiar certificados
+                  sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem ssl/cert.pem
+                  sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem ssl/key.pem
+                  sudo chown -R github-actions:github-actions ssl/
+                  
+                  echo "✅ SSL Let's Encrypt configurado!"
               else
-                  echo "❌ Falha no teste do Let's Encrypt, criando auto-assinado..."
+                  echo "❌ Falha ao obter certificado real, criando auto-assinado..."
                   sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/key.pem -out ssl/cert.pem -subj "/C=BR/ST=SP/L=SaoPaulo/O=AnalisadorPDF/CN=$DOMAIN"
                   sudo chown -R github-actions:github-actions ssl/
               fi
@@ -491,8 +491,8 @@ jobs:
           fi
           
           echo "✅ SSL configurado"
-        "
-    
+        EOF
+        
     - name: 🚀 Construir e iniciar aplicação
       run: |
         echo "🚀 Iniciando aplicação..."
@@ -600,3 +600,4 @@ jobs:
           echo "❌ Deploy falhou!"
           echo "🔍 Verifique os logs do workflow para mais detalhes"
         fi
+
